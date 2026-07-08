@@ -1,6 +1,6 @@
-# Khidmat (خدمت) - AI-Powered On-Demand Home Services Marketplace
+# Khidmat (خدمت) — On-Demand Home Services Marketplace
 
-Khidmat is a premium, AI-powered home services marketplace designed for Pakistan. Styled with modern fluid aesthetics, micro-animations, and responsive layouts, it simulates and integrates a dual-role (Customer & Labor/Worker) marketplace similar to Uber and InDrive, featuring Google Maps coordinates selection and real-time chat negotiations.
+Khidmat is a premium, security-first, on-demand home services marketplace designed for Pakistan. Styled with modern glassmorphism aesthetics, micro-animations, and responsive layouts, it simulates and integrates a dual-role (Customer & Labor/Worker) marketplace similar to Uber and InDrive, featuring automated location monitoring and real-time chat negotiations.
 
 ---
 
@@ -16,10 +16,9 @@ Khidmat is a premium, AI-powered home services marketplace designed for Pakistan
 *   Enforces schema safety using `responseMimeType: "application/json"` to categorize jobs (across 21 Pakistan-specific worker specialties), determine urgency (low, medium, high), and generate a clean task summary.
 *   **Offline Fallback Mode**: If Gemini API credentials are absent, the engine falls back to a smart regular-expression keyword parser.
 
-### 3. Uber/InDrive Location Pinning & Distance Fees
-*   **Google Maps Pin Selection**: Allows customers and providers to pin their exact dispatch location.
-*   **Interactive Radar Canvas**: When offline or in mock modes, displays a dynamic schematic radar fallback (Canvas + Framer Motion) that simulates city center drop locations across major Pakistani cities.
-*   **Haversine Distance Engine**: Automatically computes travel distances in kilometers, travel times, and physical travel allowances (Rs. 100 base + Rs. 20/km).
+### 3. Automated Geolocation & Location Monitoring
+*   **Instant Browser Detection**: Upon visiting the dashboard, the application requests browser geolocation access (`navigator.geolocation.getCurrentPosition`) to determine client coordinates and update their profile dynamically.
+*   **Automatic Travel Distance Estimation**: Booking confirmation automatically calculates distance (in km) to the provider and estimates travel fee (Rs. 100 base + Rs. 20/km) and travel duration without requiring manual pin-drops.
 
 ### 4. Gemini AI Provider Matcher & Price Estimator
 *   **AI Ranking Engine**: Compares customer coordinates with available specialists in their city, ranking matches by proximity, rating, total completed jobs, and worker bio descriptions.
@@ -30,23 +29,34 @@ Khidmat is a premium, AI-powered home services marketplace designed for Pakistan
 *   A header toggler allows providers to turn their service visibility **ONLINE** (active glowing beacon) and **OFFLINE**.
 *   Offline workers are immediately filtered out from search suggestions and customer recommendations.
 
-### 6. Real-Time Chat & System Notification Logs
-*   A responsive message-bubble chat page with dynamic timestamps, aligning client messages on the right (brand green) and provider replies on the left (slate gray).
-*   **Dev Demo Board**: A floating panel at the top of the chat area lets you simulate provider actions with a click:
-    *   *Simulate Reply*: Bounces a typing loader and posts a realistic text reply from the worker.
-    *   *Accept Booking* / *Complete Service*: Transitions statuses and automatically writes system notification banners to the message thread.
+### 6. Distinct Provider Dashboard
+*   Root route dynamically gates landing pages based on user roles. Providers land directly on a tailored dashboard.
+*   **Provider Controls**: Online/Offline toggle, stats counters (jobs completed, PKR earnings, overall rating, dynamic level tier), active incoming service request cards, and chronological earnings logs.
+*   **Actionable Bookings**: Providers can accept pending jobs or mark confirmed jobs as completed.
 
-### 7. My Bookings Dashboard, Ratings & Worker Tiers
-*   Shows active and historic service calls, responding to user roles:
-    *   *Customers* view scheduled times, totals, and active booking cancellations.
-    *   *Workers* view incoming requests, accept jobs, or mark assignments completed.
-    *   *Interactive Star Ratings*: Completed bookings display star review widgets. Ratings automatically recalculate the provider's overall score average and update their Tier Badge (**Bronze**, **Silver**, **Gold**, **Platinum**) dynamically.
+### 7. Real-Time Chat & System Notification Logs
+*   A responsive message-bubble chat page with dynamic timestamps, aligning client messages on the right (brand green) and provider replies on the left (slate gray).
+*   **Dev Demo Board**: A floating panel at the top of the chat area (only visible in development builds) lets you simulate provider replies and status updates with one click.
+
+### 8. Atomic Earnings Transaction Logic
+*   Reviews submitted by customers recalculate provider average ratings and Level Tiers (Bronze, Silver, Gold, Platinum) dynamically.
+*   Recalculation runs inside an atomic transactional write updating provider total jobs, overall rating, appending the `bookingId` to their `jobsHistory` array, and adding the job payout value to their `totalEarnings` total.
+
+---
+
+## 🛡️ Production-Grade Security (Firestore Rules)
+
+Enforces strict role-based access controls defined in `firestore.rules`:
+*   **User Profiles**: Users can read/write their own document only. Prevents clients from updating administrative credentials like `role`, `rating`, `totalJobs`, and `tier`.
+*   **Bookings**: Access restricted strictly to the matched customer and provider IDs. Enforces price calculations (`totalPrice == basePrice + travelFee`).
+*   **Messages**: Chat text records can only be read or written by the active customer or provider matched on the parent booking record.
 
 ---
 
 ## 🛠️ Tech Stack & Architecture
 
 *   **Frontend**: React (SPA), Vite, TypeScript (compiled with `verbatimModuleSyntax` safety).
+*   **Styling & Theme**: Tailwind CSS, Vanilla CSS with custom theme variables.
 *   **Animations**: Framer Motion.
 *   **Icons**: Lucide Icons.
 *   **Database & Auth**: Firebase Auth and Firestore Database API.
