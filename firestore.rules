@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. User Profiles Rule
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null 
+        && request.auth.uid == userId
+        // Enforce that role, tier, rating, totalJobs, totalEarnings, and jobsHistory cannot be changed by the client on updates
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'tier', 'rating', 'totalJobs', 'totalEarnings', 'jobsHistory']));
+    }
+
+    // 2. Providers Collection Rule
+    match /providers/{providerId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == providerId;
+      allow update: if request.auth != null 
+        && request.auth.uid == providerId
+        // Enforce that base credentials, ratings, tiers, and totalEarnings cannot be changed by the client on updates
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['rating', 'totalJobs', 'tier', 'totalEarnings']));
+    }
+
+    // 3. Bookings Rule
+    match /bookings/{bookingId} {
+      // Bookings can only be read by the participating customer or provider
+      allow read: if request.auth != null 
+        && (request.auth.uid == resource.data.customerId || request.auth.uid == resource.data.providerId);
+      
+      // Bookings can only be created by the customer making the request
+      allow create: if request.auth != null 
+        && request.auth.uid == request.resource.data.customerId
+        // Verify pricing integrity at database layer: totalPrice = basePrice + travelFee
+        && request.resource.data.totalPrice == request.resource.data.basePrice + request.resource.data.travelFee;
+
+      // Status updates and ratings can only be submitted by participants
+      allow update: if request.auth != null 
+        && (request.auth.uid == resource.data.customerId || request.auth.uid == resource.data.providerId)
+        // Verify price parameters cannot be altered on update
+        && request.resource.data.totalPrice == resource.data.totalPrice
+        && request.resource.data.basePrice == resource.data.basePrice
+        && request.resource.data.travelFee == resource.data.travelFee;
+    }
+
+    // 4. Chat Messages Sub-Collection Rule
+    match /bookings/{bookingId}/messages/{messageId} {
+      // Access to messages requires participating in the parent booking context
+      allow read, write: if request.auth != null 
+        && (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.customerId 
+            || request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.providerId);
+    }
+  }
+}
