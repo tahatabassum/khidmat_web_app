@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   Mail, 
@@ -157,8 +157,11 @@ export const Auth: React.FC = () => {
         />
       </div>
 
-      {/* Page content — standard block centering, no flex shrink issues */}
-      <div style={{ maxWidth: '520px', margin: '0 auto', padding: '40px 16px 60px' }} className="relative z-10">
+      {/* Page content — standard block centering, dynamic width */}
+      <div 
+        className="relative z-10 w-full mx-auto px-4 py-10 transition-all duration-300"
+        style={{ maxWidth: isLogin ? '680px' : '960px' }}
+      >
 
         {/* ── Brand Header ── */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -183,7 +186,7 @@ export const Auth: React.FC = () => {
           style={{ width: '100%', borderRadius: '20px', overflow: 'hidden' }}
           className="bg-surface-raised border border-border shadow-soft"
         >
-          <div style={{ padding: '28px 28px 32px' }}>
+          <div className="p-6 md:p-10">
 
             {/* Card heading */}
             <h2 style={{ fontSize: '22px', fontWeight: 700, textAlign: 'center', marginBottom: '4px' }}
@@ -192,7 +195,7 @@ export const Auth: React.FC = () => {
               {isLogin ? 'Welcome Back' : 'Create Account'}
             </h2>
             <p style={{ fontSize: '14px', textAlign: 'center', marginBottom: '24px' }}
-              className="text-ink/50"
+              className="text-ink/50 animate-fade-in"
             >
               {isLogin
                 ? 'Login with your credentials to search and book services.'
@@ -206,49 +209,53 @@ export const Auth: React.FC = () => {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
 
-              {/* ── Role switcher (signup only) ── */}
-              {!isLogin && (
-                <div className="flex bg-surface dark:bg-surface p-1 rounded-xl border border-border">
-                  <button
-                    type="button"
-                    onClick={() => setRole('customer')}
-                    className={`flex-1 py-2.5 text-center text-sm font-semibold rounded-lg transition-all ${
-                      role === 'customer'
-                        ? 'bg-surface-raised text-primary shadow-sm'
-                        : 'text-ink/50'
-                    }`}
-                  >
-                    Hire Services (Client)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole('provider')}
-                    className={`flex-1 py-2.5 text-center text-sm font-semibold rounded-lg transition-all ${
-                      role === 'provider'
-                        ? 'bg-surface-raised text-primary shadow-sm'
-                        : 'text-ink/50'
-                    }`}
-                  >
-                    Provide Services (Worker)
-                  </button>
+              {isLogin ? (
+                /* ── LOGIN FORM LAYOUT (Horizontal/Side-by-side) ── */
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Email */}
+                  <div>
+                    <label className={labelClass} htmlFor="email">Email Address</label>
+                    <div className="relative flex items-center">
+                      <span className="absolute left-4 text-gray-400 dark:text-slate-500">
+                        <Mail className="w-4 h-4" />
+                      </span>
+                      <input
+                        type="email" id="email" value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className={inputClass} placeholder="name@example.com" required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Password */}
+                  <div>
+                    <label className={labelClass} htmlFor="password">Password</label>
+                    <div className="relative flex items-center">
+                      <span className="absolute left-4 text-gray-400 dark:text-slate-500">
+                        <Lock className="w-4 h-4" />
+                      </span>
+                      <input
+                        type="password" id="password" value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className={inputClass} placeholder="••••••••" required minLength={6}
+                      />
+                    </div>
+                  </div>
                 </div>
-              )}
+              ) : (
+                /* ── SIGNUP FORM LAYOUT (Horizontal Two Columns) ── */
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                  
+                  {/* Left Column (Personal info & photo upload) */}
+                  <div className="flex flex-col gap-5">
+                    <h3 className="text-sm font-bold text-primary border-b border-border pb-1">
+                      1. Personal Information
+                    </h3>
 
-              {/* ── Signup-only fields ── */}
-              <AnimatePresence mode="wait">
-                {!isLogin && (
-                  <motion.div
-                    key="signup-fields"
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.2 }}
-                    style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
-                  >
                     {/* Profile Photo Upload Field */}
-                    <div className="flex flex-col items-center justify-center py-2">
+                    <div className="flex flex-col items-center justify-center py-1">
                       <label className="relative cursor-pointer group flex flex-col items-center">
                         <div className="w-20 h-20 rounded-full border-2 border-dashed border-border flex items-center justify-center overflow-hidden hover:border-primary transition-all bg-surface">
                           {photoPreview ? (
@@ -267,6 +274,35 @@ export const Auth: React.FC = () => {
                           {photoPreview ? 'Change Profile Photo' : 'Upload Profile Photo (Optional)'}
                         </span>
                       </label>
+                    </div>
+
+                    {/* Role selector inside Left Column */}
+                    <div>
+                      <label className={labelClass}>Account Type</label>
+                      <div className="flex bg-surface dark:bg-surface p-1 rounded-xl border border-border">
+                        <button
+                          type="button"
+                          onClick={() => setRole('customer')}
+                          className={`flex-1 py-2 text-center text-xs font-semibold rounded-lg transition-all ${
+                            role === 'customer'
+                              ? 'bg-surface-raised text-primary shadow-sm'
+                              : 'text-ink/50'
+                          }`}
+                        >
+                          Hire (Client)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRole('provider')}
+                          className={`flex-1 py-2 text-center text-xs font-semibold rounded-lg transition-all ${
+                            role === 'provider'
+                              ? 'bg-surface-raised text-primary shadow-sm'
+                              : 'text-ink/50'
+                          }`}
+                        >
+                          Provide (Worker)
+                        </button>
+                      </div>
                     </div>
 
                     {/* Name */}
@@ -288,18 +324,55 @@ export const Auth: React.FC = () => {
                     <div>
                       <label className={labelClass} htmlFor="phone">Phone Number</label>
                       <div className="relative flex items-center">
-                        <span className="absolute left-4 text-gray-400 dark:text-slate-500 flex items-center gap-1 text-sm">
+                        <span className="absolute left-4 text-gray-400 dark:text-slate-500 flex items-center gap-1 text-xs font-semibold">
                           <Phone className="w-4 h-4" />
                           <span className="border-r border-border pr-2">+92</span>
                         </span>
                         <input
                           type="tel" id="phone" value={phone}
                           onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                          className="w-full pl-24 pr-4 py-3 rounded-xl border border-border bg-surface text-ink placeholder-ink/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-sm"
+                          className="w-full pl-20 pr-4 py-3 rounded-xl border border-border bg-surface text-ink placeholder-ink/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-sm"
                           placeholder="3001234567" maxLength={10}
                         />
                       </div>
                     </div>
+
+                    {/* Email */}
+                    <div>
+                      <label className={labelClass} htmlFor="email">Email Address</label>
+                      <div className="relative flex items-center">
+                        <span className="absolute left-4 text-gray-400 dark:text-slate-500">
+                          <Mail className="w-4 h-4" />
+                        </span>
+                        <input
+                          type="email" id="email" value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className={inputClass} placeholder="name@example.com" required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password */}
+                    <div>
+                      <label className={labelClass} htmlFor="password">Password</label>
+                      <div className="relative flex items-center">
+                        <span className="absolute left-4 text-gray-400 dark:text-slate-500">
+                          <Lock className="w-4 h-4" />
+                        </span>
+                        <input
+                          type="password" id="password" value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className={inputClass} placeholder="••••••••" required minLength={6}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column (City, location mapping, and specialty info) */}
+                  <div className="flex flex-col gap-5">
+                    <h3 className="text-sm font-bold text-primary border-b border-border pb-1">
+                      2. Service &amp; Location Details
+                    </h3>
 
                     {/* City */}
                     <div>
@@ -332,23 +405,22 @@ export const Auth: React.FC = () => {
                       <MapSelector value={coordinates} onChange={setCoordinates} city={city} />
                     </div>
 
-                    {/* Provider-only fields */}
+                    {/* Provider-only fields (category, price, bio) */}
                     {role === 'provider' && (
                       <motion.div
                         key="provider-fields"
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
-                        className="border-t border-border pt-4"
+                        className="flex flex-col gap-4 border-t border-border pt-4 mt-2"
                       >
-                        <h3 className="text-sm font-semibold text-primary flex items-center gap-1.5">
-                          <Briefcase className="w-4 h-4" /> Service &amp; Business Information
-                        </h3>
+                        <h4 className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
+                          <Briefcase className="w-3.5 h-3.5" /> Provider Specialty info
+                        </h4>
 
                         {/* Category */}
                         <div>
-                          <label className={labelClass} htmlFor="category">Service Specialty</label>
+                          <label className={labelClass} htmlFor="category">Specialty category</label>
                           <div className="relative flex items-center">
                             <span className="absolute left-4 text-gray-400 dark:text-slate-500">
                               <Briefcase className="w-4 h-4" />
@@ -368,7 +440,7 @@ export const Auth: React.FC = () => {
 
                         {/* Base price */}
                         <div>
-                          <label className={labelClass} htmlFor="basePrice">Base Hourly Rate (PKR)</label>
+                          <label className={labelClass} htmlFor="basePrice">Hourly Rate (PKR)</label>
                           <div className="relative flex items-center">
                             <span className="absolute left-4 text-gray-400 dark:text-slate-500 font-semibold text-xs">Rs.</span>
                             <input
@@ -390,69 +462,40 @@ export const Auth: React.FC = () => {
                               id="bio" value={bio}
                               onChange={(e) => setBio(e.target.value)}
                               className="w-full pl-12 pr-4 py-3 rounded-xl border border-border bg-surface text-ink placeholder-ink/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-sm min-h-[90px] resize-none"
-                              placeholder="Describe your skills, years of experience, and why customers should hire you..."
+                              placeholder="Describe your skills, experience, and certifications..."
                             />
                           </div>
                         </div>
                       </motion.div>
                     )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* ── Email ── */}
-              <div>
-                <label className={labelClass} htmlFor="email">Email Address</label>
-                <div className="relative flex items-center">
-                  <span className="absolute left-4 text-gray-400 dark:text-slate-500">
-                    <Mail className="w-4 h-4" />
-                  </span>
-                  <input
-                    type="email" id="email" value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className={inputClass} placeholder="name@example.com" required
-                  />
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* ── Password ── */}
-              <div>
-                <label className={labelClass} htmlFor="password">Password</label>
-                <div className="relative flex items-center">
-                  <span className="absolute left-4 text-gray-400 dark:text-slate-500">
-                    <Lock className="w-4 h-4" />
-                  </span>
-                  <input
-                    type="password" id="password" value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className={inputClass} placeholder="••••••••" required minLength={6}
-                  />
-                </div>
+              {/* ── Submit button centered and sized for visual balance ── */}
+              <div className="w-full flex justify-center mt-2">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full max-w-[420px] bg-primary hover:bg-primary-hover active:scale-[0.98] text-white font-semibold py-3.5 rounded-xl shadow-soft transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed text-sm cursor-pointer"
+                >
+                  {loading ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin" />
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{isLogin ? 'Login to Account' : 'Create Account'}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
               </div>
-
-              {/* ── Submit ── */}
-              <button
-                type="submit"
-                disabled={loading}
-                style={{ marginTop: '8px' }}
-                className="w-full bg-primary hover:bg-primary-hover active:scale-[0.98] text-white font-semibold py-4 rounded-xl shadow-soft transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed text-sm"
-              >
-                {loading ? (
-                  <>
-                    <Loader className="w-4 h-4 animate-spin" />
-                    <span>Processing...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>{isLogin ? 'Login to Account' : 'Create Account'}</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
             </form>
 
             {/* Toggle mode */}
-            <div style={{ textAlign: 'center', marginTop: '20px' }}>
+            <div style={{ textAlign: 'center', marginTop: '24px' }}>
               <button
                 onClick={handleToggleMode}
                 className="text-primary hover:underline text-sm font-semibold transition-colors"
