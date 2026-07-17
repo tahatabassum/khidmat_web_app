@@ -3,20 +3,20 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   getDocument, 
-  writeDocument, 
   sendChatMessage, 
   listenToChatMessages 
-} from '../firebase';
-import { Card, EmptyState } from '../components/SharedUI';
+} from '../services/firebase';
+import { Card, EmptyState } from '../components/ui/SharedUI';
 import { 
   ArrowLeft, 
   Send, 
   MessageSquare, 
   Clock, 
-  MapPin, 
-  Truck, 
-  Play, 
-  CheckCircle2
+  MapPin,
+  Phone,
+  Info,
+  Shield,
+  Navigation
 } from 'lucide-react';
 
 interface Booking {
@@ -30,7 +30,7 @@ interface Booking {
   date: string;
   timeSlot: string;
   address: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'closed' | 'cancelled';
   totalPrice: number;
   distanceKm: number;
 }
@@ -47,9 +47,8 @@ interface ChatMessage {
 export const Chat: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
-  
   const bookingId = searchParams.get('bookingId');
+  const { user, userProfile } = useAuth();
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -58,11 +57,11 @@ export const Chat: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Simulation states
-  const [isTyping, setIsTyping] = useState(false);
+  const [isTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to bottom
+  const isWorker = userProfile?.current_mode === 'worker';
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -113,7 +112,6 @@ export const Chat: React.FC = () => {
   useEffect(() => {
     if (!bookingId) return;
 
-    // Check for status changes periodically in mock environment
     const interval = setInterval(async () => {
       try {
         const data = await getDocument('bookings', bookingId);
@@ -142,10 +140,12 @@ export const Chat: React.FC = () => {
     setInputText('');
 
     try {
+      // Use proper display name from user profile
+      const senderName = userProfile?.name || user.email?.split('@')[0] || 'User';
       await sendChatMessage(
         bookingId,
         user.uid,
-        user.email?.split('@')[0] || 'Customer',
+        senderName,
         textToSend
       );
     } catch (err) {
@@ -153,74 +153,11 @@ export const Chat: React.FC = () => {
     }
   };
 
-  // --- DEVELOPER SIMULATION HANDLERS ---
-  const handleSimulateReply = async () => {
-    if (!booking || isTyping) return;
-    
-    setIsTyping(true);
-    
-    // Simulate typing delay
-    setTimeout(async () => {
-      setIsTyping(false);
-      
-      const responses = [
-        "Assalam-o-Alaikum! I have received your booking details. I am preparing my tools and will arrive on time.",
-        "Sure, please share the exact landmarks of your address if possible.",
-        "I'm on my way to your location now! I will call you when I arrive.",
-        "No problem, I will carry the standard materials. Let me know if anything else is needed.",
-        "Yes, the price estimate looks fine to me. See you soon!"
-      ];
-      
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      
-      try {
-        await sendChatMessage(
-          booking.bookingId,
-          booking.providerId,
-          booking.providerName,
-          randomResponse
-        );
-      } catch (err) {
-        console.error("Failed to send simulated reply:", err);
-      }
-    }, 2000);
-  };
-
-  const handleSimulateStatusChange = async (newStatus: 'confirmed' | 'completed') => {
-    if (!booking || !bookingId) return;
-
-    try {
-      // 1. Update Booking Document
-      const updatedBooking = { ...booking, status: newStatus };
-      await writeDocument('bookings', bookingId, updatedBooking);
-      setBooking(updatedBooking);
-
-      // 2. Inject system message in chat
-      const statusTexts = {
-        confirmed: "Worker accepted the booking request and has marked it as CONFIRMED.",
-        completed: "Worker completed the task successfully. Booking is marked as COMPLETED."
-      };
-      
-      await sendChatMessage(
-        bookingId,
-        'system',
-        'System Notification',
-        JSON.stringify({
-          text: statusTexts[newStatus],
-          isSystemEvent: true,
-          eventStatus: newStatus
-        })
-      );
-    } catch (err) {
-      console.error("Failed to update booking status:", err);
-    }
-  };
-
   if (loading) {
     return (
-      <div className="pt-28 flex flex-col items-center justify-center min-h-[60vh] text-on-surface dark:text-white">
-        <Clock className="w-8 h-8 animate-spin text-primary mr-2" />
-        <span>Loading secure chat session...</span>
+      <div className="pt-28 flex flex-col items-center justify-center min-h-[60vh] text-ink dark:text-white">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4" />
+        <span className="text-sm font-medium text-ink/60 dark:text-slate-400">Loading chat...</span>
       </div>
     );
   }
@@ -241,116 +178,112 @@ export const Chat: React.FC = () => {
     );
   }
 
+  // Determine chat partner based on current user role
+  const chatPartnerName = isWorker ? booking.customerName : booking.providerName;
+  const chatPartnerRole = isWorker ? 'Client' : booking.providerCategory;
+  const chatPartnerInitials = chatPartnerName
+    ? chatPartnerName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : '?';
+
+  const isChatLocked = ['completed', 'closed', 'cancelled'].includes(booking.status);
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'confirmed':
-        return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+        return { classes: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20', label: 'Confirmed' };
+      case 'in_progress':
+        return { classes: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20', label: 'In Progress' };
       case 'completed':
-        return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+        return { classes: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20', label: 'Completed' };
+      case 'closed':
+        return { classes: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20', label: 'Closed' };
       case 'cancelled':
-        return 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20';
+        return { classes: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20', label: 'Cancelled' };
       case 'pending':
       default:
-        return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+        return { classes: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20', label: 'Pending' };
     }
   };
 
+  const statusBadge = getStatusBadge(booking.status);
+
   return (
-    <div className="pt-20 pb-28 md:pb-12 h-screen flex flex-col w-full bg-[#FAFAF5] dark:bg-[#0F172A]">
-      
-      {/* DEVELOPER LIVE SIMULATION PANEL OVERLAY - DEV ONLY */}
-      {import.meta.env.DEV && (
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-outline-variant/30 py-2.5 px-margin-mobile md:px-margin-desktop z-40 flex flex-wrap items-center justify-between gap-md text-xs font-semibold shadow-sm">
-          <span className="text-[10px] text-primary dark:text-primary-fixed uppercase tracking-wider font-extrabold flex items-center gap-1">
-            <Play className="w-3.5 h-3.5 fill-current" />
-            Dev Demo Controls
-          </span>
-          
-          <div className="flex flex-wrap gap-2">
-            {/* Simulate message response */}
-            <button
-              onClick={handleSimulateReply}
-              disabled={isTyping || booking.status === 'completed'}
-              className="bg-primary/10 hover:bg-primary/20 text-primary dark:text-primary-fixed border border-primary/30 py-1.5 px-3 rounded-lg disabled:opacity-50 transition-all active:scale-95 flex items-center gap-1"
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              Simulate Reply
-            </button>
+    <div className="pt-20 pb-0 h-screen flex flex-col w-full bg-[#F8F8F4] dark:bg-[#0C1117]">
 
-            {/* Simulate Confirmed status */}
-            {booking.status === 'pending' && (
-              <button
-                onClick={() => handleSimulateStatusChange('confirmed')}
-                className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 py-1.5 px-3 rounded-lg transition-all active:scale-95 flex items-center gap-1"
-              >
-                <Truck className="w-3.5 h-3.5" />
-                Accept &amp; Confirm Job
-              </button>
-            )}
-
-            {/* Simulate Completed status */}
-            {booking.status === 'confirmed' && (
-              <button
-                onClick={() => handleSimulateStatusChange('completed')}
-                className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 py-1.5 px-3 rounded-lg transition-all active:scale-95 flex items-center gap-1"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                Complete Service
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* CHAT CONTAINER LAYOUT */}
-      <div className="flex-1 flex flex-col max-w-container-max mx-auto w-full overflow-hidden">
+      {/* CHAT CONTAINER */}
+      <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full overflow-hidden">
         
-        {/* Chat header area */}
-        <div className="bg-white dark:bg-slate-900 border-b border-outline-variant/30 dark:border-slate-800 p-md flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-md">
+        {/* ─── Chat Header ─── */}
+        <div className="bg-white dark:bg-slate-900 border-b border-border dark:border-slate-800 px-3 md:px-5 py-3 flex items-center justify-between shrink-0 shadow-sm">
+          <div className="flex items-center gap-2.5 md:gap-3 min-w-0">
+            {/* Back button */}
             <button
-              onClick={() => navigate('/bookings')}
-              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-on-surface transition-colors"
+              onClick={() => navigate('/inbox')}
+              className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-ink dark:text-white transition-colors shrink-0"
+              aria-label="Back to messages"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             
-            {/* Provider Initials Avatar */}
-            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm uppercase border border-primary/20">
-              {booking.providerName[0]}
+            {/* Avatar */}
+            <div className="w-10 h-10 md:w-11 md:h-11 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 dark:from-primary/25 dark:to-primary/10 flex items-center justify-center border border-primary/10 shrink-0">
+              <span className="text-primary dark:text-primary-fixed font-bold text-xs md:text-sm">{chatPartnerInitials}</span>
             </div>
             
-            <div>
-              <h2 className="font-bold text-sm text-on-surface dark:text-white leading-tight">
-                {booking.providerName}
+            {/* Name + Role */}
+            <div className="min-w-0">
+              <h2 className="font-bold text-sm md:text-base text-ink dark:text-white leading-tight truncate capitalize">
+                {chatPartnerName}
               </h2>
-              <span className="text-[10px] text-on-surface-variant dark:text-slate-400 block mt-0.5">
-                {booking.providerCategory} • {booking.address.split(',')[0]}
+              <span className="text-[10px] md:text-[11px] text-ink/50 dark:text-slate-400 block">
+                {chatPartnerRole} • {booking.address.split(',')[0]}
               </span>
             </div>
           </div>
 
-          {/* Status pill badge */}
-          <div className="text-right">
-            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full border text-[10px] font-bold capitalize tracking-wider ${getStatusBadge(booking.status)}`}>
-              {booking.status}
+          {/* Status + actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className={`hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-[9px] md:text-[10px] font-bold ${statusBadge.classes}`}>
+              {statusBadge.label}
             </span>
+            {(booking.status === 'confirmed' || booking.status === 'in_progress') && (
+              <button 
+                onClick={() => navigate(`/track/${booking.bookingId}`)}
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white text-xs font-bold shadow-soft cursor-pointer hover:bg-primary-hover active:scale-95 transition-all"
+              >
+                <Navigation className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Track Location</span>
+              </button>
+            )}
+            {booking.customerPhone && isWorker && (
+              <a 
+                href={`tel:${booking.customerPhone}`}
+                className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-primary transition-colors"
+                aria-label="Call customer"
+              >
+                <Phone className="w-4 h-4" />
+              </a>
+            )}
           </div>
         </div>
 
-        {/* Messaging Logs block */}
-        <div className="flex-1 overflow-y-auto p-md space-y-md bg-slate-50/50 dark:bg-slate-950/20">
+        {/* ─── Messages Area ─── */}
+        <div className="flex-1 overflow-y-auto px-3 md:px-5 py-4 space-y-3">
           
-          {/* Static Booking System summary bubble */}
-          <div className="max-w-md mx-auto text-center bg-white dark:bg-slate-900 p-md rounded-xl border border-outline-variant/30 dark:border-slate-800 space-y-xs shadow-sm">
-            <span className="text-[10px] uppercase font-mono tracking-widest text-slate-500 font-bold block">Service Details</span>
-            <p className="text-xs text-on-surface dark:text-white font-bold">{booking.providerCategory} • Rs. {booking.totalPrice}</p>
-            <p className="text-[10px] text-on-surface-variant dark:text-slate-400">Scheduled for {booking.date} • {booking.timeSlot}</p>
-            <p className="text-[10px] text-on-surface-variant dark:text-slate-400 flex items-center justify-center gap-1 mt-1">
-              <MapPin className="w-3 h-3 text-primary" /> {booking.address}
+          {/* Service details banner */}
+          <div className="max-w-sm mx-auto text-center bg-white dark:bg-slate-900/80 p-3 md:p-4 rounded-2xl border border-border dark:border-slate-800 shadow-sm mb-2">
+            <div className="flex items-center justify-center gap-1.5 mb-1.5">
+              <Shield className="w-3 h-3 text-primary" />
+              <span className="text-[9px] uppercase font-mono tracking-widest text-ink/40 dark:text-slate-500 font-bold">Service Details</span>
+            </div>
+            <p className="text-xs font-bold text-ink dark:text-white">{booking.providerCategory} • Rs. {booking.totalPrice}</p>
+            <p className="text-[10px] text-ink/50 dark:text-slate-500 mt-0.5">{booking.date} • {booking.timeSlot}</p>
+            <p className="text-[10px] text-ink/50 dark:text-slate-500 flex items-center justify-center gap-1 mt-1">
+              <MapPin className="w-3 h-3 text-primary/60" /> {booking.address}
             </p>
           </div>
 
+          {/* Messages */}
           {messages.map((msg, index) => {
             // Parse system notification messages
             let isSystemMessage = false;
@@ -365,13 +298,14 @@ export const Chat: React.FC = () => {
                 }
               }
             } catch (e) {
-              // ignore
+              // ignore parse errors
             }
 
             if (isSystemMessage) {
               return (
-                <div key={msg.id || index} className="flex justify-center my-md">
-                  <div className="bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 text-[10px] md:text-xs font-semibold py-1.5 px-4 rounded-full max-w-sm text-center">
+                <div key={msg.id || index} className="flex justify-center my-3">
+                  <div className="bg-sky-500/8 text-sky-700 dark:text-sky-400 border border-sky-500/15 text-[10px] md:text-[11px] font-semibold py-1.5 px-4 rounded-full max-w-xs md:max-w-sm text-center flex items-center gap-1.5">
+                    <Info className="w-3 h-3 shrink-0" />
                     {displayMsgText}
                   </div>
                 </div>
@@ -379,40 +313,48 @@ export const Chat: React.FC = () => {
             }
 
             const isMe = msg.senderId === user?.uid;
+            const msgTime = new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
             return (
               <div
                 key={msg.id || index}
                 className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
               >
+                {/* Other person's avatar on received messages */}
+                {!isMe && (
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center shrink-0 mr-2 mt-1 border border-primary/10">
+                    <span className="text-primary dark:text-primary-fixed text-[9px] font-bold">{chatPartnerInitials}</span>
+                  </div>
+                )}
+
                 <div
-                  className={`max-w-[75%] rounded-2xl px-md py-2.5 shadow-sm text-sm ${
+                  className={`max-w-[78%] md:max-w-[65%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
                     isMe 
-                      ? 'bg-primary text-on-primary rounded-tr-none' 
-                      : 'bg-white dark:bg-slate-900 border border-outline-variant/30 dark:border-slate-800 text-on-surface dark:text-slate-100 rounded-tl-none'
+                      ? 'bg-primary text-on-primary rounded-br-md shadow-sm' 
+                      : 'bg-white dark:bg-slate-900 border border-border dark:border-slate-800 text-ink dark:text-slate-100 rounded-bl-md shadow-sm'
                   }`}
                 >
-                  {/* Sender Name only on received messages */}
+                  {/* Sender name label on received messages */}
                   {!isMe && (
-                    <span className="text-[10px] font-bold text-primary dark:text-primary-fixed block mb-1">
+                    <span className="text-[10px] font-bold text-primary dark:text-primary-fixed block mb-0.5 capitalize">
                       {msg.senderName}
                     </span>
                   )}
-                  <p className="leading-relaxed whitespace-pre-wrap">{displayMsgText}</p>
+                  <p className="whitespace-pre-wrap break-words">{displayMsgText}</p>
                   
                   {/* Timestamp */}
-                  <span className={`text-[8px] block mt-1 text-right ${isMe ? 'text-white/60' : 'text-on-surface-variant/60'}`}>
-                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <span className={`text-[9px] block mt-1 text-right font-medium ${isMe ? 'text-white/50' : 'text-ink/30 dark:text-slate-600'}`}>
+                    {msgTime}
                   </span>
                 </div>
               </div>
             );
           })}
 
-          {/* Typing status indicator */}
+          {/* Typing indicator */}
           {isTyping && (
             <div className="flex justify-start">
-              <div className="bg-white dark:bg-slate-900 border border-outline-variant/30 dark:border-slate-800 rounded-2xl rounded-tl-none px-md py-3 shadow-sm flex items-center gap-1">
+              <div className="bg-white dark:bg-slate-900 border border-border dark:border-slate-800 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
                 <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
                 <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
@@ -423,26 +365,32 @@ export const Chat: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input box section */}
-        <div className="bg-white dark:bg-slate-900 border-t border-outline-variant/30 dark:border-slate-800 p-md shrink-0">
-          <form onSubmit={handleSendMessage} className="flex gap-sm items-center">
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              className="flex-1 bg-slate-50 dark:bg-slate-950 border border-outline-variant/35 dark:border-slate-800 rounded-xl py-3.5 px-md text-sm text-on-surface dark:text-white outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-              placeholder={booking.status === 'completed' ? 'Booking is completed. Chat locked.' : 'Type a message to negotiate details...'}
-              disabled={booking.status === 'completed'}
-            />
-            <button
-              type="submit"
-              disabled={!inputText.trim() || booking.status === 'completed'}
-              className="w-12 h-12 rounded-xl bg-primary text-on-primary flex items-center justify-center hover:brightness-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0 shadow-soft"
-              aria-label="Send message"
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          </form>
+        {/* ─── Input Box ─── */}
+        <div className="bg-white dark:bg-slate-900 border-t border-border dark:border-slate-800 px-3 md:px-5 py-3 shrink-0">
+          {isChatLocked ? (
+            <div className="flex items-center justify-center gap-2 py-2 text-xs text-ink/40 dark:text-slate-600 font-medium">
+              <Clock className="w-3.5 h-3.5" />
+              <span>This conversation is {booking.status === 'cancelled' ? 'cancelled' : 'closed'}. Messaging is disabled.</span>
+            </div>
+          ) : (
+            <form onSubmit={handleSendMessage} className="flex gap-2 items-end">
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                className="flex-1 bg-slate-50 dark:bg-slate-950 border border-border dark:border-slate-800 rounded-2xl py-3 px-4 text-sm text-ink dark:text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-ink/30 dark:placeholder:text-slate-600"
+                placeholder="Type a message..."
+              />
+              <button
+                type="submit"
+                disabled={!inputText.trim()}
+                className="w-11 h-11 rounded-2xl bg-primary text-on-primary flex items-center justify-center hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-sm"
+                aria-label="Send message"
+              >
+                <Send className="w-4.5 h-4.5" />
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

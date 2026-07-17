@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Navigation, Compass, ShieldAlert, Sparkles } from 'lucide-react';
-import { PAKISTAN_CITIES, type LocationCoords } from '../utils/location';
+import { PAKISTAN_CITIES, type LocationCoords } from '../../utils/location';
 
 interface MapSelectorProps {
   value: LocationCoords;

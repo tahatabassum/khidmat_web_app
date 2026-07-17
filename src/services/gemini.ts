@@ -117,7 +117,7 @@ export const parseServiceIntent = async (userInput: string): Promise<ParsedInten
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -194,7 +194,7 @@ Output your response as JSON matching this schema:
   }
 };
 
-import { getDistanceKm, type LocationCoords } from './location';
+import { getDistanceKm, type LocationCoords } from '../utils/location';
 
 interface RankedProviderResult {
   userId: string;
@@ -260,7 +260,7 @@ export const rankProvidersWithAI = async (
     });
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -372,7 +372,7 @@ export const estimateJobPriceWithAI = async (
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -439,4 +439,122 @@ Output your response as JSON matching this schema:
     console.error("[Gemini] Job price estimation call failed. Falling back to local pricing. Error:", error);
     return localPriceEstimate;
   }
+};
+
+/**
+ * Local fallback knowledge base for the site agent chatbot.
+ * Provides useful answers even without an API connection.
+ */
+const localSiteAgentFallback = (question: string): string => {
+  const q = question.toLowerCase();
+
+  if (q.match(/\b(book|hire|find|search|get)\b/) && q.match(/\b(provider|worker|service|someone)\b/)) {
+    return "To book a provider on Khidmat:\n1. Use the search bar on the home page — you can type or speak your problem.\n2. Our AI will match you with the right service category.\n3. Browse available providers, compare ratings and prices.\n4. Tap 'Book Now' to confirm your booking.\n5. Chat directly with the provider to coordinate details.";
+  }
+  if (q.match(/\b(pay|payment|cost|price|fee|charge|money)\b/)) {
+    return "Khidmat currently supports Cash on Delivery (COD) payments. You pay the provider directly after the service is completed. Prices include an AI-estimated job cost plus a travel fee (Rs. 100 base + Rs. 20/km).";
+  }
+  if (q.match(/\b(categor|service|type|what.*offer)\b/)) {
+    return "Khidmat offers 21 service categories: Electrician, Plumber, Carpenter, Painter, AC Technician, House Cleaner, Appliance Repair, Mechanic, Gardener, Movers & Packers, Pest Control, CCTV Technician, Welder, Mason, Handyman, Photographer, Videographer, Event Decorator, DJ, Caterer, and Waiter/Server.";
+  }
+  if (q.match(/\b(rating|review|tier|star|feedback)\b/)) {
+    return "After each completed job, clients can leave a rating and review. Providers earn tiers based on their performance: Bronze → Silver → Gold → Platinum. Higher-tier providers appear first in search results.";
+  }
+  if (q.match(/\b(register|sign up|join|become.*worker|become.*provider)\b/)) {
+    return "To become a worker on Khidmat:\n1. Create an account or log in.\n2. Go to your Profile page.\n3. Click 'Become a Worker' and fill in your skills, service category, bio, and hourly rate.\n4. You can switch between Worker and Client mode anytime from your profile!";
+  }
+  if (q.match(/\b(chat|message|inbox|contact|talk)\b/)) {
+    return "Khidmat has real-time chat built in! After booking a provider, you can message them directly through the Inbox tab to discuss job details, timing, and any special requirements.";
+  }
+  if (q.match(/\b(safe|trust|verify|secure|scam)\b/)) {
+    return "Khidmat prioritizes safety: providers are rated and reviewed by real customers, and the tier system (Bronze to Platinum) rewards consistently reliable workers. Always check provider ratings before booking.";
+  }
+  if (q.match(/\b(hello|hi|hey|salam|assalam|greet)\b/)) {
+    return "Assalam-o-Alaikum! 👋 Welcome to Khidmat Support. I'm here to help you with anything related to our platform — booking services, finding providers, payments, and more. How can I assist you?";
+  }
+  if (q.match(/\b(thank|shukriya|thanks)\b/)) {
+    return "You're welcome! 😊 If you have any more questions about Khidmat, feel free to ask anytime.";
+  }
+
+  return "I can help you with questions about Khidmat — our services, how to book a provider, payment methods, ratings, becoming a worker, and more. What would you like to know?";
+};
+
+export const askSiteAgent = async (question: string): Promise<string> => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const isKeyInvalid = !apiKey || apiKey === 'your_gemini_api_key_here';
+
+  if (isKeyInvalid) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return localSiteAgentFallback(question);
+  }
+
+  const maxRetries = 2;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: `You are the Site-Specific Knowledge Agent for "Khidmat", an on-demand home services marketplace in Pakistan.
+Your sole task is to provide information based strictly on the content of the Khidmat platform.
+
+Khidmat Context:
+- Khidmat is an on-demand platform matching customers with 21 categories of local workers in Pakistan (e.g. Electrician, Plumber, AC Technician, Videographer, DJ, Caterer, etc.).
+- Payments are currently Cash on Delivery (COD).
+- Features include: AI-powered intent parsing (describe your problem to find the right worker), speech-to-text search, automatic travel fee calculations based on distance (Rs 100 base + Rs 20/km), AI price estimation, and real-time chat between customer and provider.
+- Providers can toggle themselves ONLINE or OFFLINE. Customers can review providers, affecting their tier (Bronze, Silver, Gold, Platinum).
+
+Strict Instructions:
+1. Answer ONLY questions related to Khidmat's features, services, and usage.
+2. If a user asks a general knowledge question (e.g., "What is the capital of France?", "Write me a poem"), you MUST politely decline and inform them that you are restricted to providing information only about Khidmat.
+3. Be concise, helpful, and friendly.
+
+User Question: "${question}"`
+              }]
+            }]
+          })
+        }
+      );
+
+      if (response.status === 429) {
+        // Rate limited — retry after a delay, or fall back
+        if (attempt < maxRetries) {
+          console.warn(`[Gemini] Rate limited (429). Retrying in ${(attempt + 1) * 2}s... (attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, (attempt + 1) * 2000));
+          continue;
+        }
+        // All retries exhausted, use local fallback
+        console.warn("[Gemini] Rate limit persists after retries. Using local fallback.");
+        return localSiteAgentFallback(question);
+      }
+
+      if (!response.ok) {
+        throw new Error(`Gemini API returned status ${response.status}`);
+      }
+
+      const result = await response.json();
+      const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (!responseText) {
+        throw new Error("Empty response from Gemini API");
+      }
+
+      return responseText.trim();
+    } catch (error) {
+      console.error("[Gemini] Site Agent call failed. Error:", error);
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, (attempt + 1) * 1500));
+        continue;
+      }
+      return localSiteAgentFallback(question);
+    }
+  }
+
+  return localSiteAgentFallback(question);
 };

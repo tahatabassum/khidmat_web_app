@@ -1,4 +1,4 @@
-import { isMockFirebase, writeDocument, getCollectionDocs } from '../firebase';
+import { isMockFirebase, writeDocument, getCollectionDocs } from '../services/firebase';
 import { PAKISTAN_CITIES, type LocationCoords } from './location';
 
 export interface Provider {

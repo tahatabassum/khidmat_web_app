@@ -50,5 +50,17 @@ service cloud.firestore {
         && (request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.customerId 
             || request.auth.uid == get(/databases/$(database)/documents/bookings/$(bookingId)).data.providerId);
     }
+
+    // 5. Notifications Collection Rule
+    match /notifications/{notificationId} {
+      // Users can only read their own notifications
+      allow read: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+      // Any authenticated user can create a notification (system sends on behalf of actions)
+      allow create: if request.auth != null;
+      // Users can only update (mark as read) their own notifications
+      allow update: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+    }
   }
 }

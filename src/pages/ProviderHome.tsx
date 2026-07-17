@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { queryCollectionDocs, writeDocument } from '../firebase';
-import { Card, EmptyState, Avatar } from '../components/SharedUI';
-import { TierBadge } from '../components/TierBadge';
+import { queryCollectionDocs, writeDocument } from '../services/firebase';
+import { Card, EmptyState, Avatar } from '../components/ui/SharedUI';
+import { TierBadge } from '../components/ui/TierBadge';
+import { motion } from 'framer-motion';
 import { 
   Star, 
   MapPin, 
@@ -21,6 +22,7 @@ export const ProviderHome: React.FC = () => {
 
   const [bookings, setBookings] = useState<any[]>([]);
   const [togglingLocation, setTogglingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   const fetchBookings = async () => {
     if (!user) return;
@@ -43,6 +45,7 @@ export const ProviderHome: React.FC = () => {
   const handleToggleOnline = async () => {
     if (!user) return;
     setTogglingLocation(true);
+    setLocationError(null);
 
     if (!isOnline) {
       // Prompt for geolocation
@@ -55,27 +58,29 @@ export const ProviderHome: React.FC = () => {
             };
             try {
               await updateProfile({ available: true, location: coords });
+              setLocationError(null);
             } catch (err) {
               console.error("Failed to update profile to online:", err);
-              alert("Failed to update status. Please try again.");
+              setLocationError("Failed to update online status. Please check connection.");
             } finally {
               setTogglingLocation(false);
             }
           },
           (err) => {
             console.error("Geolocation error:", err);
-            alert("Location access is required to go Online. Please enable location permissions for this site in your browser.");
+            setLocationError("Location access is required to go Online. Please enable location permissions in your browser.");
             setTogglingLocation(false);
           }
         );
       } else {
-        alert("Geolocation is not supported by your browser.");
+        setLocationError("Geolocation is not supported by your browser.");
         setTogglingLocation(false);
       }
     } else {
       // Toggle offline
       try {
         await updateProfile({ available: false });
+        setLocationError(null);
       } catch (err) {
         console.error("Failed to update profile to offline:", err);
       } finally {
@@ -87,15 +92,16 @@ export const ProviderHome: React.FC = () => {
   const handleAcceptBooking = async (booking: any) => {
     try {
       const updatedBooking = { ...booking, status: 'confirmed' };
-      await writeDocument('bookings', booking.bookingId, updatedBooking);
       
-      // Send a system notification in the chat
-      await writeDocument(`bookings/${booking.bookingId}/messages`, `sys_${Date.now()}`, {
-        senderId: 'system',
-        senderName: 'System',
-        text: 'The provider has accepted the request and confirmed the booking.',
-        createdAt: new Date().toISOString()
-      });
+      await Promise.all([
+        writeDocument('bookings', booking.bookingId, updatedBooking),
+        writeDocument(`bookings/${booking.bookingId}/messages`, `sys_${Date.now()}`, {
+          senderId: 'system',
+          senderName: 'System',
+          text: 'The provider has accepted the request and confirmed the booking.',
+          createdAt: new Date().toISOString()
+        })
+      ]);
 
       // Refresh local view
       fetchBookings();
@@ -108,15 +114,16 @@ export const ProviderHome: React.FC = () => {
   const handleCompleteBooking = async (booking: any) => {
     try {
       const updatedBooking = { ...booking, status: 'completed' };
-      await writeDocument('bookings', booking.bookingId, updatedBooking);
-
-      // Send a system notification in the chat
-      await writeDocument(`bookings/${booking.bookingId}/messages`, `sys_${Date.now()}`, {
-        senderId: 'system',
-        senderName: 'System',
-        text: 'The provider has marked the service as completed. Pending client confirmation/rating review.',
-        createdAt: new Date().toISOString()
-      });
+      
+      await Promise.all([
+        writeDocument('bookings', booking.bookingId, updatedBooking),
+        writeDocument(`bookings/${booking.bookingId}/messages`, `sys_${Date.now()}`, {
+          senderId: 'system',
+          senderName: 'System',
+          text: 'The provider has marked the service as completed. Pending client confirmation/rating review.',
+          createdAt: new Date().toISOString()
+        })
+      ]);
 
       // Refresh local view
       fetchBookings();
@@ -129,22 +136,21 @@ export const ProviderHome: React.FC = () => {
   // Filter lists
   const activeBookings = bookings.filter(b => b.status === 'pending' || b.status === 'confirmed');
   const recentHistory = bookings
-    .filter(b => b.status === 'completed')
+    .filter(b => b.status === 'completed' || b.status === 'closed')
     .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());
 
   return (
     <div className="pt-24 pb-28 md:pb-12 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto w-full">
       
-      {/* Welcome Banner */}
-      <section className="bg-gradient-to-br from-primary/10 to-emerald-100/50 dark:from-slate-900 dark:to-slate-800 rounded-2xl p-6 md:p-8 mb-xl border border-primary/20 flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="flex items-center gap-4 text-center md:text-left">
-          <Avatar src={userProfile.photoURL} name={userProfile.name} className="w-16 h-16 shadow-md border-2 border-white dark:border-slate-800" />
-          <div>
-            <h1 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2 justify-center md:justify-start">
+      <section className="bg-gradient-to-br from-primary/10 via-surface-raised to-accent-sage/10 rounded-2xl p-6 md:p-8 mb-xl border border-border flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex items-center gap-4 text-left w-full md:w-auto">
+          <Avatar src={userProfile.photoURL} name={userProfile.name} className="w-16 h-16 shadow-md border-2 border-surface" />
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-extrabold text-ink flex flex-wrap items-center gap-2 justify-start">
               Welcome, {userProfile.name}!
               <TierBadge tier={userProfile.tier || 'Bronze'} />
             </h1>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
+            <p className="text-sm text-ink/60 mt-0.5 break-words">
               Manage your services, track earnings, and respond to clients from your provider dashboard.
             </p>
           </div>
@@ -157,58 +163,82 @@ export const ProviderHome: React.FC = () => {
             disabled={togglingLocation}
             className={`px-8 py-3.5 rounded-xl font-bold text-sm shadow-soft transition-all active:scale-95 cursor-pointer flex items-center gap-2 border ${
               isOnline
-                ? 'bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-600'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 border-gray-200 dark:border-slate-700'
+                ? 'bg-primary text-white border-primary'
+                : 'bg-surface text-ink/50 border-border'
             }`}
           >
-            <span className={`w-3.5 h-3.5 rounded-full border-2 border-white ${isOnline ? 'bg-white animate-pulse' : 'bg-slate-400'}`}></span>
+            <span className={`w-3.5 h-3.5 rounded-full border-2 border-white ${isOnline ? 'bg-white animate-pulse' : 'bg-ink/40'}`}></span>
             {togglingLocation ? 'Updating location...' : isOnline ? 'You are ONLINE' : 'You are OFFLINE'}
           </button>
-          <span className="text-[10px] text-gray-400 dark:text-slate-500 font-semibold uppercase tracking-wider">
+          <span className="text-[10px] text-ink/40 font-semibold uppercase tracking-wider">
             {isOnline ? 'Visible to customers searching for services' : 'Hidden from customer search results'}
           </span>
         </div>
+      {locationError && (
+        <div className="bg-accent-terracotta/10 border border-accent-terracotta/20 text-accent-terracotta rounded-xl p-md text-sm mb-lg animate-pulse">
+          {locationError}
+        </div>
+      )}
       </section>
 
-      {/* Stats Cards Section */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-md mb-xl">
-        <Card className="p-4 md:p-6 flex flex-col justify-between">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Jobs Completed</span>
-          <div className="flex items-center gap-2 mt-2">
-            <CheckCircle className="w-6 h-6 text-primary" />
-            <span className="text-xl md:text-2xl font-extrabold text-gray-900 dark:text-white">{userProfile.totalJobs || 0}</span>
-          </div>
-        </Card>
+      <motion.section 
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: { opacity: 0 },
+          visible: { opacity: 1, transition: { staggerChildren: 0.08 } }
+        }}
+        className="grid grid-cols-2 lg:grid-cols-4 gap-md mb-xl"
+      >
+        <motion.div variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }}>
+          <Card className="p-4 md:p-6 flex flex-col justify-between h-full">
+            <span className="text-xs font-semibold text-ink/40 uppercase tracking-wide">Jobs Completed</span>
+            <div className="flex items-center gap-2 mt-2">
+              <CheckCircle className="w-6 h-6 text-primary" />
+              <span className="text-xl md:text-2xl font-extrabold text-ink">{userProfile.totalJobs || 0}</span>
+            </div>
+          </Card>
+        </motion.div>
 
-        <Card className="p-4 md:p-6 flex flex-col justify-between">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Total Earnings</span>
-          <div className="flex items-center gap-2 mt-2">
-            <DollarSign className="w-6 h-6 text-primary" />
-            <span className="text-xl md:text-2xl font-extrabold text-gray-900 dark:text-white">Rs. {userProfile.totalEarnings || 0}</span>
-          </div>
-        </Card>
+        <motion.div variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }}>
+          <Card className="p-4 md:p-6 flex flex-col justify-between h-full">
+            <span className="text-xs font-semibold text-ink/40 uppercase tracking-wide">Total Earnings</span>
+            <div className="flex items-center gap-2 mt-2">
+              <DollarSign className="w-6 h-6 text-primary" />
+              <span className="text-xl md:text-2xl font-extrabold text-ink">Rs. {userProfile.totalEarnings || 0}</span>
+            </div>
+          </Card>
+        </motion.div>
 
-        <Card className="p-4 md:p-6 flex flex-col justify-between">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Overall Rating</span>
-          <div className="flex items-center gap-2 mt-2">
-            <Star className="w-6 h-6 text-amber-500 fill-current" />
-            <span className="text-xl md:text-2xl font-extrabold text-gray-900 dark:text-white">{(userProfile.rating || 5.0).toFixed(1)}</span>
-          </div>
-        </Card>
+        <motion.div variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }}>
+          <Card className="p-4 md:p-6 flex flex-col justify-between h-full">
+            <span className="text-xs font-semibold text-ink/40 uppercase tracking-wide">Overall Rating</span>
+            <div className="flex items-center gap-2 mt-2">
+              <Star className="w-6 h-6 text-accent-gold fill-current" />
+              <span className="text-xl md:text-2xl font-extrabold text-ink">
+                {userProfile.rating !== null && userProfile.rating !== undefined 
+                  ? userProfile.rating.toFixed(1) 
+                  : "New"}
+              </span>
+            </div>
+          </Card>
+        </motion.div>
 
-        <Card className="p-4 md:p-6 flex flex-col justify-between">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Current Specialty</span>
-          <div className="flex items-center gap-2 mt-2">
-            <Briefcase className="w-6 h-6 text-primary" />
-            <span className="text-sm font-extrabold text-gray-900 dark:text-white truncate">{userProfile.category || 'Specialist'}</span>
-          </div>
-        </Card>
-      </section>
+        <motion.div variants={{ hidden: { opacity: 0, y: 15 }, visible: { opacity: 1, y: 0 } }}>
+          <Card className="p-4 md:p-6 flex flex-col justify-between h-full">
+            <span className="text-xs font-semibold text-ink/40 uppercase tracking-wide">Current Specialty</span>
+            <div className="flex items-center gap-2 mt-2">
+              <Briefcase className="w-6 h-6 text-primary" />
+              <span className="text-sm font-extrabold text-ink truncate">{userProfile.category || 'Specialist'}</span>
+            </div>
+          </Card>
+        </motion.div>
+      </motion.section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-lg">
         {/* Active Booking requests (2/3 width on desktop) */}
         <div className="lg:col-span-2 space-y-md">
-          <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <h2 className="text-base font-bold text-ink flex items-center gap-2">
             <Calendar className="w-5 h-5 text-primary" />
             Active Service Requests ({activeBookings.length})
           </h2>
@@ -224,22 +254,22 @@ export const ProviderHome: React.FC = () => {
               </Card>
             ) : (
               activeBookings.map((b) => (
-                <Card key={b.bookingId} className="p-5 flex flex-col md:flex-row items-start justify-between gap-md border border-outline-variant/30 dark:border-slate-800">
+                <Card key={b.bookingId} className="p-5 flex flex-col md:flex-row items-start justify-between gap-md border border-border">
                   <div className="space-y-sm flex-grow">
                     <div className="flex items-center gap-2">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                         b.status === 'pending'
-                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                          : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
+                          ? 'bg-accent-terracotta/8 text-accent-terracotta border-accent-terracotta/25'
+                          : 'bg-primary/8 text-primary border-primary/25'
                       }`}>
                         {b.status}
                       </span>
-                      <span className="text-xs font-bold text-gray-400 dark:text-slate-500 font-mono">#{b.bookingId.substring(8) || b.bookingId}</span>
+                      <span className="text-xs font-bold text-ink/40 font-mono">#{b.bookingId.substring(8) || b.bookingId}</span>
                     </div>
 
-                    <h3 className="text-base font-bold text-gray-900 dark:text-white">{b.customerName}</h3>
+                    <h3 className="text-base font-bold text-ink">{b.customerName}</h3>
                     
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-slate-400 font-medium">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/60 font-medium">
                       <span className="flex items-center gap-1">
                         <MapPin className="w-3.5 h-3.5 text-primary" />
                         {b.address}
@@ -249,8 +279,8 @@ export const ProviderHome: React.FC = () => {
                         {b.timeSlot} ({b.date})
                       </span>
                     </div>
-                    <p className="text-xs font-bold text-primary dark:text-[#6bff8f]">
-                      PKR Invoice: Rs. {b.totalPrice} <span className="text-[10px] text-gray-400 dark:text-slate-500 font-normal">(Rs. {b.basePrice} base + Rs. {b.travelFee} travel)</span>
+                    <p className="text-xs font-bold text-primary">
+                      PKR Invoice: Rs. {b.totalPrice} <span className="text-[10px] text-ink/40 font-normal">(Rs. {b.basePrice} base + Rs. {b.travelFee} travel)</span>
                     </p>
                   </div>
 
@@ -258,7 +288,7 @@ export const ProviderHome: React.FC = () => {
                   <div className="flex md:flex-col gap-2 w-full md:w-auto shrink-0 justify-end">
                     <button
                       onClick={() => navigate(`/chat?bookingId=${b.bookingId}`)}
-                      className="flex-1 md:flex-initial bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all border border-gray-200 dark:border-slate-700"
+                      className="flex-1 md:flex-initial bg-surface hover:bg-border text-ink text-xs font-semibold py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all border border-border"
                     >
                       <MessageSquare className="w-4 h-4" />
                       Chat Client
@@ -266,7 +296,7 @@ export const ProviderHome: React.FC = () => {
                     {b.status === 'pending' && (
                       <button
                         onClick={() => handleAcceptBooking(b)}
-                        className="flex-1 md:flex-initial bg-primary text-on-primary text-xs font-semibold py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                        className="flex-1 md:flex-initial bg-primary text-white text-xs font-semibold py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all"
                       >
                         <CheckCircle className="w-4 h-4" />
                         Accept Job
@@ -275,7 +305,7 @@ export const ProviderHome: React.FC = () => {
                     {b.status === 'confirmed' && (
                       <button
                         onClick={() => handleCompleteBooking(b)}
-                        className="flex-1 md:flex-initial bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all border border-emerald-600"
+                        className="flex-1 md:flex-initial bg-primary text-white text-xs font-semibold py-2.5 px-4 rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-all border border-primary-hover"
                       >
                         <CheckCircle className="w-4 h-4" />
                         Complete Job
@@ -290,26 +320,26 @@ export const ProviderHome: React.FC = () => {
 
         {/* Recent Job History List (1/3 width) */}
         <div className="space-y-md">
-          <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <h2 className="text-base font-bold text-ink flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-primary" />
             Recent Earnings ({recentHistory.length})
           </h2>
 
           <Card className="p-4 md:p-6 space-y-4">
             {recentHistory.length === 0 ? (
-              <p className="text-xs text-gray-400 dark:text-slate-500 text-center py-6">No completed jobs yet. Keep online and complete assignments to earn!</p>
+              <p className="text-xs text-ink/40 text-center py-6">No completed jobs yet. Keep online and complete assignments to earn!</p>
             ) : (
               recentHistory.map((h) => (
-                <div key={h.bookingId} className="flex justify-between items-center border-b border-gray-100 dark:border-slate-800 pb-3 last:border-b-0 last:pb-0">
+                <div key={h.bookingId} className="flex justify-between items-center border-b border-border pb-3 last:border-b-0 last:pb-0">
                   <div className="space-y-0.5">
-                    <p className="text-xs font-bold text-gray-800 dark:text-slate-200">{h.customerName}</p>
-                    <p className="text-[10px] text-gray-400 dark:text-slate-500 font-medium">{h.date}</p>
+                    <p className="text-xs font-bold text-ink">{h.customerName}</p>
+                    <p className="text-[10px] text-ink/40 font-medium">{h.date}</p>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs font-extrabold text-[#006e2f] dark:text-[#6bff8f] block">
+                    <span className="text-xs font-extrabold text-primary block">
                       +Rs. {h.totalPrice}
                     </span>
-                    <span className="text-[9px] text-gray-400 dark:text-slate-500 block">Completed</span>
+                    <span className="text-[9px] text-ink/40 block">Completed</span>
                   </div>
                 </div>
               ))

@@ -15,7 +15,7 @@ import {
   Map,
   Camera
 } from 'lucide-react';
-import { MapSelector } from '../components/MapSelector';
+import { MapSelector } from '../components/features/MapSelector';
 import { PAKISTAN_CITIES, type LocationCoords } from '../utils/location';
 
 export const Auth: React.FC = () => {
@@ -140,20 +140,20 @@ export const Auth: React.FC = () => {
     }
   };
 
-  const inputClass = "w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 outline-none focus:border-[#006e2f] focus:ring-2 focus:ring-[#006e2f]/20 transition-all text-sm";
-  const labelClass = "block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide";
+  const inputClass = "w-full pl-12 pr-4 py-3 rounded-xl border border-border bg-surface dark:bg-surface text-ink placeholder-ink/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-sm";
+  const labelClass = "block text-xs font-semibold text-ink/50 mb-1.5 uppercase tracking-wide";
 
   return (
     <div
       style={{ minHeight: '100vh', width: '100%', overflowY: 'auto', background: 'transparent' }}
-      className="bg-[#FAFAF5] dark:bg-[#0F172A] relative"
+      className="bg-surface dark:bg-surface relative"
     >
-      {/* Subtle background pattern */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+      {/* Subtle background pattern + gradient mesh */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden gradient-mesh-bg">
         <div className="absolute inset-0 mosaic-pattern opacity-[0.04]" />
         <div
           className="absolute -bottom-40 left-1/2 -translate-x-1/2 w-[800px] h-64 rounded-full blur-[100px] opacity-10"
-          style={{ background: '#006e2f' }}
+          style={{ background: 'var(--primary)' }}
         />
       </div>
 
@@ -164,18 +164,16 @@ export const Auth: React.FC = () => {
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div
             style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            className="bg-white dark:bg-[#1E293B] border border-gray-200 dark:border-slate-700 px-6 py-3 rounded-2xl shadow-soft mb-4"
+            className="bg-surface-raised border border-border px-6 py-3 rounded-2xl shadow-soft mb-4"
           >
-            <span style={{ fontSize: '22px', fontWeight: 700, color: '#006e2f', letterSpacing: '-0.5px' }}>
+            <span className="font-display text-xl font-bold text-primary tracking-tight">
               Khidmat
             </span>
-            <span style={{ fontSize: '14px', fontWeight: 600, color: '#934b1b', marginTop: '-8px' }}>
+            <span className="text-sm font-semibold text-accent-gold" style={{ marginTop: '-8px' }}>
               خدمت
             </span>
           </div>
-          <p style={{ fontSize: '16px', fontWeight: 600, color: '#101f16', lineHeight: '1.5', marginTop: '12px' }}
-            className="dark:text-slate-200"
-          >
+          <p className="text-base font-semibold text-ink leading-relaxed mt-3">
             Professional &amp; localized service providers<br className="hidden sm:block" /> at your doorstep.
           </p>
         </div>
@@ -183,18 +181,18 @@ export const Auth: React.FC = () => {
         {/* ── Auth Card ── */}
         <div
           style={{ width: '100%', borderRadius: '20px', overflow: 'hidden' }}
-          className="bg-white dark:bg-[#1E293B] border border-gray-200 dark:border-slate-700 shadow-soft"
+          className="bg-surface-raised border border-border shadow-soft"
         >
           <div style={{ padding: '28px 28px 32px' }}>
 
             {/* Card heading */}
             <h2 style={{ fontSize: '22px', fontWeight: 700, textAlign: 'center', marginBottom: '4px' }}
-              className="text-gray-900 dark:text-white"
+              className="text-ink"
             >
               {isLogin ? 'Welcome Back' : 'Create Account'}
             </h2>
             <p style={{ fontSize: '14px', textAlign: 'center', marginBottom: '24px' }}
-              className="text-gray-500 dark:text-slate-400"
+              className="text-ink/50"
             >
               {isLogin
                 ? 'Login with your credentials to search and book services.'
@@ -212,14 +210,14 @@ export const Auth: React.FC = () => {
 
               {/* ── Role switcher (signup only) ── */}
               {!isLogin && (
-                <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-xl border border-gray-200 dark:border-slate-700">
+                <div className="flex bg-surface dark:bg-surface p-1 rounded-xl border border-border">
                   <button
                     type="button"
                     onClick={() => setRole('customer')}
                     className={`flex-1 py-2.5 text-center text-sm font-semibold rounded-lg transition-all ${
                       role === 'customer'
-                        ? 'bg-white dark:bg-slate-900 text-[#006e2f] dark:text-[#6bff8f] shadow-sm'
-                        : 'text-gray-500 dark:text-slate-400'
+                        ? 'bg-surface-raised text-primary shadow-sm'
+                        : 'text-ink/50'
                     }`}
                   >
                     Hire Services (Client)
@@ -229,8 +227,8 @@ export const Auth: React.FC = () => {
                     onClick={() => setRole('provider')}
                     className={`flex-1 py-2.5 text-center text-sm font-semibold rounded-lg transition-all ${
                       role === 'provider'
-                        ? 'bg-white dark:bg-slate-900 text-[#006e2f] dark:text-[#6bff8f] shadow-sm'
-                        : 'text-gray-500 dark:text-slate-400'
+                        ? 'bg-surface-raised text-primary shadow-sm'
+                        : 'text-ink/50'
                     }`}
                   >
                     Provide Services (Worker)
@@ -252,11 +250,11 @@ export const Auth: React.FC = () => {
                     {/* Profile Photo Upload Field */}
                     <div className="flex flex-col items-center justify-center py-2">
                       <label className="relative cursor-pointer group flex flex-col items-center">
-                        <div className="w-20 h-20 rounded-full border-2 border-dashed border-gray-300 dark:border-slate-700 flex items-center justify-center overflow-hidden hover:border-[#006e2f] transition-all bg-gray-50 dark:bg-slate-800">
+                        <div className="w-20 h-20 rounded-full border-2 border-dashed border-border flex items-center justify-center overflow-hidden hover:border-primary transition-all bg-surface">
                           {photoPreview ? (
                             <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
                           ) : (
-                            <Camera className="w-8 h-8 text-gray-400 group-hover:text-[#006e2f] transition-colors" />
+                            <Camera className="w-8 h-8 text-ink/30 group-hover:text-primary transition-colors" />
                           )}
                         </div>
                         <input
@@ -265,7 +263,7 @@ export const Auth: React.FC = () => {
                           onChange={handlePhotoChange}
                           className="hidden"
                         />
-                        <span className="text-[11px] font-semibold text-gray-500 dark:text-slate-400 mt-2 hover:text-[#006e2f] dark:hover:text-[#6bff8f] transition-colors">
+                        <span className="text-[11px] font-semibold text-ink/50 mt-2 hover:text-primary transition-colors">
                           {photoPreview ? 'Change Profile Photo' : 'Upload Profile Photo (Optional)'}
                         </span>
                       </label>
@@ -275,7 +273,7 @@ export const Auth: React.FC = () => {
                     <div>
                       <label className={labelClass} htmlFor="name">Full Name</label>
                       <div className="relative flex items-center">
-                        <span className="absolute left-4 text-gray-400 dark:text-slate-500">
+                        <span className="absolute left-4 text-ink/40">
                           <User className="w-4 h-4" />
                         </span>
                         <input
@@ -292,12 +290,12 @@ export const Auth: React.FC = () => {
                       <div className="relative flex items-center">
                         <span className="absolute left-4 text-gray-400 dark:text-slate-500 flex items-center gap-1 text-sm">
                           <Phone className="w-4 h-4" />
-                          <span className="border-r border-gray-300 dark:border-slate-600 pr-2">+92</span>
+                          <span className="border-r border-border pr-2">+92</span>
                         </span>
                         <input
                           type="tel" id="phone" value={phone}
                           onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                          className="w-full pl-24 pr-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 outline-none focus:border-[#006e2f] focus:ring-2 focus:ring-[#006e2f]/20 transition-all text-sm"
+                          className="w-full pl-24 pr-4 py-3 rounded-xl border border-border bg-surface text-ink placeholder-ink/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-sm"
                           placeholder="3001234567" maxLength={10}
                         />
                       </div>
@@ -319,7 +317,7 @@ export const Auth: React.FC = () => {
                             <option key={c} value={c}>{c}</option>
                           ))}
                         </select>
-                        <span className="absolute right-4 pointer-events-none text-gray-400 text-xs">▼</span>
+                        <span className="absolute right-4 pointer-events-none text-ink/30 text-xs">▼</span>
                       </div>
                     </div>
 
@@ -327,7 +325,7 @@ export const Auth: React.FC = () => {
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <label className={labelClass} style={{ marginBottom: 0 }}>Pin Exact Location</label>
-                        <span className="text-[10px] text-[#006e2f] dark:text-[#6bff8f] font-semibold flex items-center gap-1">
+                        <span className="text-[10px] text-primary font-semibold flex items-center gap-1">
                           <Map className="w-3 h-3" /> Drag marker to your location
                         </span>
                       </div>
@@ -342,9 +340,9 @@ export const Auth: React.FC = () => {
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                         style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
-                        className="border-t border-gray-100 dark:border-slate-700 pt-4"
+                        className="border-t border-border pt-4"
                       >
-                        <h3 className="text-sm font-semibold text-[#006e2f] dark:text-[#6bff8f] flex items-center gap-1.5">
+                        <h3 className="text-sm font-semibold text-primary flex items-center gap-1.5">
                           <Briefcase className="w-4 h-4" /> Service &amp; Business Information
                         </h3>
 
@@ -391,7 +389,7 @@ export const Auth: React.FC = () => {
                             <textarea
                               id="bio" value={bio}
                               onChange={(e) => setBio(e.target.value)}
-                              className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-slate-500 outline-none focus:border-[#006e2f] focus:ring-2 focus:ring-[#006e2f]/20 transition-all text-sm min-h-[90px] resize-none"
+                              className="w-full pl-12 pr-4 py-3 rounded-xl border border-border bg-surface text-ink placeholder-ink/30 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-sm min-h-[90px] resize-none"
                               placeholder="Describe your skills, years of experience, and why customers should hire you..."
                             />
                           </div>
@@ -437,7 +435,7 @@ export const Auth: React.FC = () => {
                 type="submit"
                 disabled={loading}
                 style={{ marginTop: '8px' }}
-                className="w-full bg-[#006e2f] hover:bg-[#005a27] active:scale-[0.98] text-white font-semibold py-4 rounded-xl shadow-soft transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed text-sm"
+                className="w-full bg-primary hover:bg-primary-hover active:scale-[0.98] text-white font-semibold py-4 rounded-xl shadow-soft transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed text-sm"
               >
                 {loading ? (
                   <>
@@ -457,7 +455,7 @@ export const Auth: React.FC = () => {
             <div style={{ textAlign: 'center', marginTop: '20px' }}>
               <button
                 onClick={handleToggleMode}
-                className="text-[#006e2f] dark:text-[#6bff8f] hover:underline text-sm font-semibold transition-colors"
+                className="text-primary hover:underline text-sm font-semibold transition-colors"
               >
                 {isLogin
                   ? "Don't have an account? Sign Up"

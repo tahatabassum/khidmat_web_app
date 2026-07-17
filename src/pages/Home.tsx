@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { ProviderHome } from './ProviderHome';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useGSAP } from '@gsap/react';
+
+gsap.registerPlugin(ScrollTrigger);
 import { 
   Zap, 
   Droplet, 
@@ -70,7 +75,7 @@ const SpeechRecognition = (window as any).SpeechRecognition || (window as any).w
 export const Home: React.FC = () => {
   const { userProfile } = useAuth();
   
-  if (userProfile && userProfile.role === 'provider') {
+  if (userProfile && userProfile.current_mode === 'worker') {
     return <ProviderHome />;
   }
 
@@ -87,6 +92,104 @@ const CustomerHome: React.FC = () => {
   const [listeningError, setListeningError] = useState<string | null>(null);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const [isFocused, setIsFocused] = useState(false);
+
+  const getCategoryColors = (name: string) => {
+    const lowercase = name.toLowerCase();
+    if (lowercase.includes('electrician') || lowercase.includes('cleaner') || lowercase.includes('repair') || lowercase.includes('welder') || lowercase.includes('dj') || lowercase.includes('photo')) {
+      return {
+        bg: 'hover:bg-accent-gold/10 hover:border-accent-gold/30',
+        text: 'text-accent-gold dark:text-accent-gold',
+        iconBg: 'bg-accent-gold/10'
+      };
+    }
+    if (lowercase.includes('plumber') || lowercase.includes('ac') || lowercase.includes('mechanic') || lowercase.includes('movers') || lowercase.includes('cctv') || lowercase.includes('video') || lowercase.includes('caterer')) {
+      return {
+        bg: 'hover:bg-accent-sky/10 hover:border-accent-sky/30',
+        text: 'text-accent-sky dark:text-accent-sky',
+        iconBg: 'bg-accent-sky/10'
+      };
+    }
+    return {
+      bg: 'hover:bg-accent-sage/10 hover:border-accent-sage/30',
+      text: 'text-accent-sage dark:text-accent-sage',
+      iconBg: 'bg-accent-sage/10'
+    };
+  };
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // GSAP scroll triggered animations
+  useGSAP(() => {
+    // 2. Story Section Timeline
+    const tlStory = gsap.timeline({
+      scrollTrigger: {
+        trigger: '.story-section',
+        start: 'top 80%',
+      }
+    });
+    tlStory.from('.story-text', {
+      x: -30,
+      opacity: 0,
+      duration: 0.6,
+      ease: 'power2.out'
+    }).from('.story-image', {
+      scale: 1.05,
+      opacity: 0,
+      duration: 0.6,
+      ease: 'power2.out'
+    }, '<');
+
+    // 3. Safety Section Timeline
+    const tlSafety = gsap.timeline({
+      scrollTrigger: {
+        trigger: '.safety-section',
+        start: 'top 80%',
+      }
+    });
+    tlSafety.from('.safety-image', {
+      scale: 1.05,
+      opacity: 0,
+      duration: 0.6,
+      ease: 'power2.out'
+    }).from('.safety-text', {
+      x: 30,
+      opacity: 0,
+      duration: 0.6,
+      ease: 'power2.out'
+    }, '<').from('.safety-check-item', {
+      scale: 1.1,
+      opacity: 0,
+      duration: 0.3,
+      stagger: 0.1,
+      ease: 'back.out(1.7)'
+    }, '-=0.2');
+
+  }, { scope: containerRef });
+
+  // Framer Motion staggered child variants for Hero
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08,
+        ease: [0.22, 1, 0.36, 1] as any,
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: [0.22, 1, 0.36, 1] as any,
+      }
+    }
+  };
 
   // Auto-request location access when using the app
   useEffect(() => {
@@ -186,28 +289,53 @@ const CustomerHome: React.FC = () => {
   };
 
   return (
-    <div className="pt-24 pb-28 md:pb-12 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto w-full">
+    <div ref={containerRef} className="pt-24 pb-28 md:pb-12 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto w-full relative">
+      {/* Floating Ambient blur particles */}
+      <div className="absolute top-20 left-10 w-72 h-72 rounded-full bg-accent-sage/5 dark:bg-accent-sage/3 blur-3xl pointer-events-none ambient-orb-1" />
+      <div className="absolute top-96 right-20 w-80 h-80 rounded-full bg-accent-gold/5 dark:bg-accent-gold/2 blur-3xl pointer-events-none ambient-orb-2" />
+
       {/* Hero Section with Mosaic */}
-      <section className="relative rounded-xl overflow-hidden mb-xl shadow-soft">
-        <div className="absolute inset-0 mosaic-pattern opacity-10 pointer-events-none"></div>
-        <div className="relative z-10 py-12 px-lg md:py-20 md:px-xl bg-gradient-to-br from-surface/80 via-surface/40 to-transparent dark:from-slate-900/90 dark:to-transparent">
-          <h1 className="font-headline-xl-mobile md:font-headline-xl text-headline-xl-mobile md:text-headline-xl text-primary dark:text-primary-fixed mb-sm">
+      <motion.section 
+        variants={containerVariants} 
+        initial="hidden" 
+        animate="visible"
+        className="relative rounded-xl overflow-hidden mb-xl shadow-soft gradient-mesh-bg border border-border"
+      >
+        <div className="absolute inset-0 mosaic-pattern opacity-[0.08] pointer-events-none"></div>
+        <div className="relative z-10 py-12 px-lg md:py-20 md:px-xl">
+          <motion.h1 
+            variants={itemVariants} 
+            className="font-display font-semibold text-headline-xl-mobile md:text-headline-xl text-primary mb-sm leading-tight"
+          >
             Professional Help,<br />Right at Your Doorstep
-          </h1>
-          <p className="text-on-surface-variant dark:text-[#94A3B8] max-w-md font-body-md text-body-md mb-lg">
+          </motion.h1>
+          <motion.p 
+            variants={itemVariants} 
+            className="text-ink/80 max-w-md font-sans text-body-md mb-lg"
+          >
             Trusted local experts for every home need. From fixing a leak to planning your next big event.
-          </p>
+          </motion.p>
 
           {/* Universal Search Bar - Visible on BOTH Mobile and Desktop */}
-          <form onSubmit={handleSearchSubmit} className="relative w-full max-w-xl shadow-soft rounded-xl overflow-hidden bg-white dark:bg-[#1E293B] border border-outline-variant/30 dark:border-slate-800">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-outline dark:text-[#64748B] flex items-center">
+          <motion.form 
+            variants={itemVariants}
+            onSubmit={handleSearchSubmit} 
+            className={`relative w-full max-w-xl rounded-xl overflow-hidden bg-surface-raised border transition-all duration-300 ${
+              isFocused 
+                ? 'border-accent-gold shadow-[0_0_20px_0_rgba(184,134,59,0.15)] scale-[1.01]' 
+                : 'border-border shadow-soft'
+            }`}
+          >
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/50 flex items-center">
               <Search className="w-5 h-5" />
             </span>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent border-none py-4 pl-12 pr-12 text-on-surface dark:text-white outline-none focus:ring-0 text-sm font-medium"
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              className="w-full bg-transparent border-none py-4 pl-12 pr-12 text-ink outline-none focus:ring-0 text-sm font-medium"
               placeholder="Describe what service you need... (e.g. kitchen pipe leak)"
             />
             
@@ -215,43 +343,44 @@ const CustomerHome: React.FC = () => {
             <button
               type="button"
               onClick={startVoiceSearch}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-primary dark:text-primary-fixed w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-90 transition-all"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-primary w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface/50 transition-all cursor-pointer"
               aria-label="Voice Search"
             >
               <Mic className="w-5 h-5" />
             </button>
-          </form>
+          </motion.form>
         </div>
-      </section>
+      </motion.section>
 
       {/* Category Grid Section */}
       <section className="mb-xl">
         <div className="flex justify-between items-end mb-lg">
           <div>
-            <h2 className="font-headline-lg text-headline-lg text-on-background dark:text-white">Explore Categories</h2>
-            <p className="text-on-surface-variant dark:text-[#94A3B8] font-label-md text-label-md">Verified professionals across 21 specialties</p>
+            <h2 className="font-display font-medium text-headline-lg text-ink">Explore Categories</h2>
+            <p className="text-ink/60 font-sans text-label-md">Verified professionals across 21 specialties</p>
           </div>
         </div>
 
         {/* Bento/Asymmetric Grid Layout */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-gutter">
+        <div className="category-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-gutter">
           {CATEGORIES.slice(0, 12).map((cat, index) => {
             const IconComponent = cat.icon;
+            const customColor = getCategoryColors(cat.name);
             return (
               <motion.button
                 key={cat.name}
                 onClick={() => handleCategoryClick(cat.name)}
-                className="flex flex-col items-center justify-center p-lg bg-surface-container-lowest dark:bg-[#1E293B] rounded-xl shadow-soft hover:shadow-md transition-all group border border-outline-variant/30 dark:border-[#334155]"
-                whileHover={{ y: -4 }}
+                className={`category-card flex flex-col items-center justify-center p-lg bg-surface-raised rounded-xl shadow-soft border border-border transition-all duration-300 group ${customColor.bg}`}
+                whileHover={{ y: -4, scale: 1.02 }}
                 whileTap={{ scale: 0.95 }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, delay: index * 0.02 }}
               >
-                <div className={`w-14 h-14 rounded-2xl ${cat.color} flex items-center justify-center mb-md group-hover:scale-110 transition-transform`}>
-                  <IconComponent className={`w-7 h-7 ${cat.text}`} />
+                <div className={`w-14 h-14 rounded-2xl ${customColor.iconBg} flex items-center justify-center mb-md group-hover:scale-110 group-hover:rotate-[8deg] transition-all duration-300`}>
+                  <IconComponent className={`w-7 h-7 ${customColor.text}`} />
                 </div>
-                <span className="font-label-md text-label-md text-on-surface dark:text-[#F8FAFC] text-center line-clamp-1">
+                <span className="font-label-md text-label-md text-ink text-center line-clamp-1">
                   {cat.name}
                 </span>
               </motion.button>
@@ -287,19 +416,19 @@ const CustomerHome: React.FC = () => {
         </div>
 
         {/* Verification Pitch Card */}
-        <div className="bg-primary-container/10 dark:bg-primary-container/5 rounded-xl p-lg flex flex-col justify-center border border-primary/20 dark:border-primary-fixed/20">
+        <div className="bg-primary/5 dark:bg-primary/10 rounded-xl p-lg flex flex-col justify-center border border-primary/20 dark:border-primary/30">
           <div className="flex items-center gap-md mb-md">
-            <div className="w-12 h-12 rounded-full bg-primary dark:bg-primary-container flex items-center justify-center text-white dark:text-on-primary-container shadow-sm">
+            <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white shadow-sm">
               <ShieldCheck className="w-6 h-6" />
             </div>
-            <h3 className="font-headline-md text-headline-md text-on-primary-container dark:text-primary-fixed font-bold">Verified Khidmat PROs</h3>
+            <h3 className="font-display font-semibold text-lg text-primary dark:text-primary">Verified Khidmat PROs</h3>
           </div>
-          <p className="text-on-surface-variant dark:text-[#94A3B8] mb-lg font-body-md">
+          <p className="text-ink/70 mb-lg text-sm leading-relaxed">
             Every professional undergoes a 5-step background check and skill verification process to ensure your safety and satisfaction.
           </p>
           <button 
             onClick={() => navigate('/safety')}
-            className="bg-primary dark:bg-primary-container text-on-primary dark:text-on-primary-container font-label-md text-label-md py-3 px-6 rounded-lg w-fit hover:brightness-110 transition-all active:scale-95 shadow-soft"
+            className="bg-primary text-white font-bold text-sm py-3 px-6 rounded-xl w-fit hover:bg-primary-hover transition-all active:scale-95 shadow-soft"
           >
             Learn about Safety
           </button>
@@ -310,24 +439,24 @@ const CustomerHome: React.FC = () => {
       <section className="mb-xl space-y-xl">
         
         {/* Section 1: Our Story */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg items-center">
-          <div className="space-y-md order-2 lg:order-1">
-            <div className="flex items-center gap-2 text-primary dark:text-[#6bff8f] font-bold text-xs uppercase tracking-wider">
+        <div className="story-section grid grid-cols-1 lg:grid-cols-2 gap-lg items-center">
+          <div className="story-text space-y-md order-2 lg:order-1">
+            <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider">
               <Heart className="w-4 h-4 text-red-500 fill-red-500" />
               <span>Created with a Purpose</span>
             </div>
-            <h2 className="font-headline-lg text-headline-lg text-on-background dark:text-white font-extrabold leading-tight">
+            <h2 className="font-display text-headline-lg text-ink font-semibold leading-tight">
               Why We Created Khidmat
             </h2>
-            <p className="text-sm text-on-surface-variant dark:text-slate-350 leading-relaxed">
+            <p className="text-sm text-ink/80 leading-relaxed">
               Khidmat was created for the <strong>DYLP Hackathon</strong> with a simple but powerful mission: to bridge the gap between skilled blue-collar service professionals and Pakistani households. 
             </p>
-            <p className="text-sm text-on-surface-variant dark:text-slate-350 leading-relaxed">
+            <p className="text-sm text-ink/80 leading-relaxed">
               We realized that finding trustworthy, verified help for home maintenance shouldn't require complex phone directories or unsafe third-party suggestions. By digitizing safety rules, identity validation, and fair-pricing estimations, Khidmat protects customers from arbitrary rate hikes while guaranteeing micro-task earners a reliable pipeline of local jobs.
             </p>
           </div>
-          <div className="order-1 lg:order-2 flex justify-center">
-            <div className="relative p-2 bg-white dark:bg-slate-800 rounded-3xl border border-outline-variant/30 dark:border-slate-700 shadow-lg max-w-sm overflow-hidden group">
+          <div className="story-image order-1 lg:order-2 flex justify-center">
+            <div className="relative p-2 bg-surface-raised rounded-3xl border border-border shadow-lg max-w-sm overflow-hidden group">
               <img 
                 src="/about_illustration.png" 
                 alt="About Khidmat" 
@@ -338,9 +467,9 @@ const CustomerHome: React.FC = () => {
         </div>
 
         {/* Section 2: How We Guarantee Safety & Trust */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-lg items-center pt-8">
-          <div className="flex justify-center">
-            <div className="relative p-2 bg-white dark:bg-slate-800 rounded-3xl border border-outline-variant/30 dark:border-slate-700 shadow-lg max-w-sm overflow-hidden group">
+        <div className="safety-section grid grid-cols-1 lg:grid-cols-2 gap-lg items-center pt-8">
+          <div className="safety-image flex justify-center">
+            <div className="relative p-2 bg-surface-raised rounded-3xl border border-border shadow-lg max-w-sm overflow-hidden group">
               <img 
                 src="/mission_illustration.png" 
                 alt="Our Safety Mission" 
@@ -348,40 +477,40 @@ const CustomerHome: React.FC = () => {
               />
             </div>
           </div>
-          <div className="space-y-md">
-            <div className="flex items-center gap-2 text-primary dark:text-[#6bff8f] font-bold text-xs uppercase tracking-wider">
+          <div className="safety-text space-y-md">
+            <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider">
               <Users className="w-4 h-4 text-primary" />
               <span>A Safer Community</span>
             </div>
-            <h2 className="font-headline-lg text-headline-lg text-on-background dark:text-white font-extrabold leading-tight">
+            <h2 className="font-display text-headline-lg text-ink font-semibold leading-tight">
               A Direct, Safe, &amp; Smart Marketplace
             </h2>
             <div className="space-y-4">
-              <div className="flex gap-3">
+              <div className="safety-check-item flex gap-3">
                 <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
                   <span className="font-bold text-xs font-mono">1</span>
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-gray-900 dark:text-white">Government CNIC Verification</h4>
-                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Every provider is identity-mapped with validated biometric CNIC databases for total security.</p>
+                  <h4 className="text-sm font-bold text-ink">Government CNIC Verification</h4>
+                  <p className="text-xs text-ink/70 mt-0.5">Every provider is identity-mapped with validated CNIC databases for total security.</p>
                 </div>
               </div>
-              <div className="flex gap-3">
+              <div className="safety-check-item flex gap-3">
                 <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
                   <span className="font-bold text-xs font-mono">2</span>
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-gray-900 dark:text-white">AI-Powered Worker Matching</h4>
-                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Our custom ranking system matches you with the closest, highest-rated specialists in your city.</p>
+                  <h4 className="text-sm font-bold text-ink">AI-Powered Worker Matching</h4>
+                  <p className="text-xs text-ink/70 mt-0.5">Our custom ranking system matches you with the closest, highest-rated specialists in your city.</p>
                 </div>
               </div>
-              <div className="flex gap-3">
+              <div className="safety-check-item flex gap-3">
                 <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
                   <span className="font-bold text-xs font-mono">3</span>
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-gray-900 dark:text-white">Fair Invoice Rate Protection</h4>
-                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Automated pricing limits prevent overcharging by capping travel fees based on real-time distance calculations.</p>
+                  <h4 className="text-sm font-bold text-ink">Fair Invoice Rate Protection</h4>
+                  <p className="text-xs text-ink/70 mt-0.5">Automated pricing limits prevent overcharging by capping travel fees based on real-time distance calculations.</p>
                 </div>
               </div>
             </div>
@@ -392,12 +521,12 @@ const CustomerHome: React.FC = () => {
       {/* VOICE LISTENING ANIMATED MODAL SHEET */}
       <AnimatePresence>
         {showVoiceModal && (
-          <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-md">
+          <div className="fixed inset-0 bg-ink/50 dark:bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-md">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-white dark:bg-[#1E293B] border border-outline-variant/30 dark:border-slate-800 rounded-2xl shadow-xl max-w-sm w-full p-lg text-center space-y-lg relative overflow-hidden"
+              className="bg-surface-raised dark:bg-surface-raised border border-border rounded-2xl shadow-xl max-w-sm w-full p-lg text-center space-y-lg relative overflow-hidden"
             >
               {/* Spinning compass loader overlay when active */}
               {isListening ? (
@@ -409,8 +538,8 @@ const CustomerHome: React.FC = () => {
                     <Mic className="w-8 h-8 animate-pulse text-red-500" style={{ animationDuration: '1s' }} />
                   </div>
                   
-                  <h3 className="font-headline-md text-headline-md text-on-surface dark:text-white">Listening...</h3>
-                  <p className="text-xs text-on-surface-variant dark:text-slate-400 max-w-xs">
+                  <h3 className="font-display font-semibold text-lg text-ink">Listening...</h3>
+                  <p className="text-xs text-ink/60 max-w-xs">
                     Please describe what job or worker you are searching for.
                   </p>
 
@@ -427,7 +556,7 @@ const CustomerHome: React.FC = () => {
                           repeat: Infinity,
                           ease: 'easeInOut'
                         }}
-                        className="w-1.5 bg-primary dark:bg-primary-fixed rounded-full"
+                        className="w-1.5 bg-primary rounded-full"
                         style={{ height: 10 }}
                       />
                     ))}
@@ -439,15 +568,15 @@ const CustomerHome: React.FC = () => {
                   <div className="w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center border border-amber-500/20 text-amber-600 dark:text-amber-400">
                     <AlertCircle className="w-7 h-7" />
                   </div>
-                  <h3 className="font-headline-md text-headline-md text-on-surface dark:text-white">Voice Search Status</h3>
+                  <h3 className="font-display font-semibold text-lg text-ink">Voice Search Status</h3>
                   
-                  <p className="text-xs text-on-surface-variant dark:text-slate-400 leading-relaxed px-sm">
+                  <p className="text-xs text-ink/60 leading-relaxed px-sm">
                     {listeningError || "Speech window closed. No audio was detected."}
                   </p>
 
                   {/* Presentation Mode helper: clickable commands that skip mic requirement */}
-                  <div className="w-full bg-slate-50 dark:bg-[#0F172A] border border-outline-variant/30 dark:border-slate-800 p-md rounded-xl space-y-sm text-left">
-                    <p className="text-[10px] uppercase font-mono tracking-widest text-slate-500 dark:text-slate-400 font-bold block mb-1">
+                  <div className="w-full bg-surface dark:bg-surface border border-border p-md rounded-xl space-y-sm text-left">
+                    <p className="text-[10px] uppercase font-mono tracking-widest text-ink/40 font-bold block mb-1">
                       Demo Command Shortcut
                     </p>
                     <div className="space-y-xs">
@@ -464,7 +593,7 @@ const CustomerHome: React.FC = () => {
                             setShowVoiceModal(false);
                             navigate(`/matching?q=${encodeURIComponent(phrase)}`);
                           }}
-                          className="w-full text-left text-xs bg-white dark:bg-slate-800 hover:border-primary border border-outline-variant/20 dark:border-[#334155] p-2.5 rounded-lg text-on-surface dark:text-slate-300 font-semibold shadow-sm transition-all"
+                          className="w-full text-left text-xs bg-surface-raised dark:bg-surface-raised hover:border-primary border border-border p-2.5 rounded-lg text-ink font-semibold shadow-sm transition-all"
                         >
                           "{phrase}"
                         </button>
@@ -478,7 +607,7 @@ const CustomerHome: React.FC = () => {
               <button 
                 type="button"
                 onClick={cancelVoiceSearch}
-                className="w-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-on-surface dark:text-slate-200 text-sm font-bold py-3.5 rounded-xl transition-all active:scale-[0.98]"
+                className="w-full bg-surface dark:bg-surface hover:bg-border text-ink text-sm font-bold py-3.5 rounded-xl transition-all active:scale-[0.98] border border-border"
               >
                 Close Voice Dialog
               </button>

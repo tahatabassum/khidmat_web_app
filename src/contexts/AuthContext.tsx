@@ -8,7 +8,23 @@ import {
   getUserProfile,
   writeDocument,
   uploadProfilePhoto
-} from '../firebase';
+} from '../services/firebase';
+
+interface WorkerProfile {
+  category: string;
+  bio: string;
+  basePrice: number;
+  rating: number | null;
+  totalJobs: number;
+  tier: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+  available: boolean;
+  totalEarnings: number;
+  jobsHistory: string[];
+}
+
+interface ClientProfile {
+  bookingsHistory: string[];
+}
 
 interface UserProfile {
   name: string;
@@ -16,18 +32,21 @@ interface UserProfile {
   phone: string;
   city: string;
   role: 'customer' | 'provider';
+  current_mode: 'worker' | 'client';
   location: { lat: number; lng: number };
   createdAt: string;
   category?: string;
   bio?: string;
   basePrice?: number;
-  rating?: number;
+  rating?: number | null;
   totalJobs?: number;
   tier?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
   available?: boolean;
   photoURL?: string;
   totalEarnings?: number;
   jobsHistory?: string[];
+  worker_profile?: WorkerProfile;
+  client_profile?: ClientProfile;
 }
 
 interface AuthContextType {
@@ -124,16 +143,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         phone, 
         city,
         role,
+        current_mode: role === 'provider' ? 'worker' : 'client',
         location,
         photoURL,
         createdAt: new Date().toISOString()
       };
 
       if (role === 'provider' && providerDetails) {
+        const worker_profile = {
+          category: providerDetails.category,
+          bio: providerDetails.bio,
+          basePrice: Number(providerDetails.basePrice),
+          rating: null, // Default rating is null
+          totalJobs: 0,
+          tier: 'Bronze' as const,
+          available: true,
+          totalEarnings: 0,
+          jobsHistory: []
+        };
+        
+        profileData.worker_profile = worker_profile;
+        profileData.client_profile = { bookingsHistory: [] };
+
+        // Support root fields compatibility
         profileData.category = providerDetails.category;
         profileData.bio = providerDetails.bio;
         profileData.basePrice = Number(providerDetails.basePrice);
-        profileData.rating = 5.0;
+        profileData.rating = null;
         profileData.totalJobs = 0;
         profileData.tier = 'Bronze';
         profileData.available = true;
@@ -151,13 +187,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           category: providerDetails.category,
           bio: providerDetails.bio,
           basePrice: Number(providerDetails.basePrice),
-          rating: 5.0,
+          rating: null, // Rating is null on init
           totalJobs: 0,
           tier: 'Bronze',
           available: true,
           photoURL,
           totalEarnings: 0
         });
+      } else {
+        profileData.client_profile = { bookingsHistory: [] };
       }
       
       await writeUserProfile(result.user.uid, profileData);
@@ -185,9 +223,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...newData
     };
 
+    // Keep sub-object worker_profile in sync if role is provider
+    if (updatedProfile.role === 'provider' || updatedProfile.worker_profile) {
+      const currentWorkerProfile = updatedProfile.worker_profile || {
+        category: updatedProfile.category || '',
+        bio: updatedProfile.bio || '',
+        basePrice: updatedProfile.basePrice || 0,
+        rating: updatedProfile.rating !== undefined ? updatedProfile.rating : null,
+        totalJobs: updatedProfile.totalJobs || 0,
+        tier: updatedProfile.tier || 'Bronze',
+        available: updatedProfile.available !== false,
+        totalEarnings: updatedProfile.totalEarnings || 0,
+        jobsHistory: updatedProfile.jobsHistory || []
+      };
+
+      updatedProfile.worker_profile = {
+        ...currentWorkerProfile,
+        category: newData.category !== undefined ? newData.category : currentWorkerProfile.category,
+        bio: newData.bio !== undefined ? newData.bio : currentWorkerProfile.bio,
+        basePrice: newData.basePrice !== undefined ? Number(newData.basePrice) : currentWorkerProfile.basePrice,
+        rating: newData.rating !== undefined ? newData.rating : currentWorkerProfile.rating,
+        totalJobs: newData.totalJobs !== undefined ? newData.totalJobs : currentWorkerProfile.totalJobs,
+        tier: newData.tier !== undefined ? (newData.tier as any) : currentWorkerProfile.tier,
+        available: newData.available !== undefined ? newData.available : currentWorkerProfile.available,
+        totalEarnings: newData.totalEarnings !== undefined ? newData.totalEarnings : currentWorkerProfile.totalEarnings,
+        jobsHistory: newData.jobsHistory !== undefined ? newData.jobsHistory : currentWorkerProfile.jobsHistory
+      };
+
+      // Keep root properties in sync for backward compatibility
+      updatedProfile.category = updatedProfile.worker_profile.category;
+      updatedProfile.bio = updatedProfile.worker_profile.bio;
+      updatedProfile.basePrice = updatedProfile.worker_profile.basePrice;
+      updatedProfile.rating = updatedProfile.worker_profile.rating;
+      updatedProfile.totalJobs = updatedProfile.worker_profile.totalJobs;
+      updatedProfile.tier = updatedProfile.worker_profile.tier;
+      updatedProfile.available = updatedProfile.worker_profile.available;
+      updatedProfile.totalEarnings = updatedProfile.worker_profile.totalEarnings;
+      updatedProfile.jobsHistory = updatedProfile.worker_profile.jobsHistory;
+    }
+
     await writeUserProfile(user.uid, updatedProfile);
 
-    if (userProfile.role === 'provider') {
+    if (updatedProfile.role === 'provider' && updatedProfile.worker_profile) {
       await writeDocument('providers', user.uid, {
         userId: user.uid,
         name: updatedProfile.name,
@@ -195,15 +272,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         phone: updatedProfile.phone,
         city: updatedProfile.city,
         location: updatedProfile.location,
-        category: updatedProfile.category || '',
-        bio: updatedProfile.bio || '',
-        basePrice: updatedProfile.basePrice || 0,
-        rating: updatedProfile.rating || 5.0,
-        totalJobs: updatedProfile.totalJobs || 0,
-        tier: updatedProfile.tier || 'Bronze',
-        available: updatedProfile.available !== false,
+        category: updatedProfile.worker_profile.category,
+        bio: updatedProfile.worker_profile.bio,
+        basePrice: updatedProfile.worker_profile.basePrice,
+        rating: updatedProfile.worker_profile.rating,
+        totalJobs: updatedProfile.worker_profile.totalJobs,
+        tier: updatedProfile.worker_profile.tier,
+        available: updatedProfile.worker_profile.available,
         photoURL: updatedProfile.photoURL || '',
-        totalEarnings: updatedProfile.totalEarnings || 0
+        totalEarnings: updatedProfile.worker_profile.totalEarnings
       });
     }
 

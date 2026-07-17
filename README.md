@@ -25,22 +25,39 @@ Khidmat is a premium, security-first, on-demand home services marketplace design
 *   **AI PKR Price Ranges**: Estimates a realistic service price range in PKR based on job complexity and travel distances, incorporating detailed explanations.
 *   **Offline Fallback Matcher**: Features a scoring-matrix fallback that scores and ranks candidates locally using ratings, distance penalties, and status tiers.
 
-### 5. InDrive-style Online Availability Toggle
+### 5. InDrive-style Online Availability Toggle & Proximity Matches
 *   A header toggler allows providers to turn their service visibility **ONLINE** (active glowing beacon) and **OFFLINE**.
-*   Offline workers are immediately filtered out from search suggestions and customer recommendations.
+*   **Offline Local Matches**: If no online providers are in range, Khidmat displays matching offline providers in the customer's city. Clients can trigger dynamic email invitations and in-app notifications to invite offline workers to log in and go online.
 
-### 6. Distinct Provider Dashboard
+### 6. Dynamic Email Redirection & Auto-Online Actions
+*   **Invitation Link Actions**: Inviting an offline worker dispatches an actionable redirect link (`/?action=accept-invite`) via a CORS-free FormSubmit.co API integration to their email inbox.
+*   **Persistent Handlers**: When a worker logs in or accesses the site from the invitation link, an overlay modal prompts them to **"Go Online & Notify"** the customer. This switches the worker to ONLINE status, issues in-app alert logs for the client, and notifies them back via a success toast and return confirmation email.
+
+### 7. Distinct Provider Dashboard
 *   Root route dynamically gates landing pages based on user roles. Providers land directly on a tailored dashboard.
 *   **Provider Controls**: Online/Offline toggle, stats counters (jobs completed, PKR earnings, overall rating, dynamic level tier), active incoming service request cards, and chronological earnings logs.
 *   **Actionable Bookings**: Providers can accept pending jobs or mark confirmed jobs as completed.
 
-### 7. Real-Time Chat & System Notification Logs
+### 8. Real-Time Chat & System Notification Logs
 *   A responsive message-bubble chat page with dynamic timestamps, aligning client messages on the right (brand green) and provider replies on the left (slate gray).
 *   **Dev Demo Board**: A floating panel at the top of the chat area (only visible in development builds) lets you simulate provider replies and status updates with one click.
 
-### 8. Atomic Earnings Transaction Logic
+### 9. Atomic Earnings Transaction Logic
 *   Reviews submitted by customers recalculate provider average ratings and Level Tiers (Bronze, Silver, Gold, Platinum) dynamically.
 *   Recalculation runs inside an atomic transactional write updating provider total jobs, overall rating, appending the `bookingId` to their `jobsHistory` array, and adding the job payout value to their `totalEarnings` total.
+
+---
+
+## 🎨 Premium Visual Redesigns
+
+### 1. Safety Page (`Safety.tsx`)
+- Upgraded from a narrow vertical block stack to a gorgeous **3-column horizontal grid** on desktop, collapsing smoothly to a single column on mobile.
+- Features large, beautiful watermark step counts in the card backgrounds that transition on hover, clean micro-animations, and removed legacy check items (CNIC / Biometric verification placeholders) for a modern SaaS aesthetic.
+
+### 2. Standalone 404 Error Page (`NotFound.tsx`)
+- A standalone, full-screen wildcard router template that hides default headers/footers to preserve the design card focus.
+- Displays a central, prominent, background-removed illustration of Goku (waist-up crop) sitting flush with the card bottom edge.
+- Integrates low-opacity floating background vector icons (wrench, droplet, sparkles, hammer) and a clean "Go Back to Home" button.
 
 ---
 
@@ -50,6 +67,7 @@ Enforces strict role-based access controls defined in `firestore.rules`:
 *   **User Profiles**: Users can read/write their own document only. Prevents clients from updating administrative credentials like `role`, `rating`, `totalJobs`, and `tier`.
 *   **Bookings**: Access restricted strictly to the matched customer and provider IDs. Enforces price calculations (`totalPrice == basePrice + travelFee`).
 *   **Messages**: Chat text records can only be read or written by the active customer or provider matched on the parent booking record.
+*   **Notifications**: Access limits allow users to only view, read, or modify notification events belonging to their specific user ID.
 
 ---
 
@@ -85,6 +103,9 @@ VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
 
 # Google Gemini API Key (Optional - falls back to regex parser & local matrix)
 VITE_GEMINI_API_KEY=your_gemini_api_key_here
+
+# Resend Email Integration key
+VITE_RESEND_API_KEY=your_resend_api_key_here
 ```
 
 ---
@@ -105,8 +126,3 @@ npm run dev
 ```bash
 npm run build
 ```
-
----
-
-## 🗄️ Database Seeding Logic
-On startup, the system checks the `providers` collection. If empty (in either real Firestore or local storage mock), it automatically seeds **27 detailed, realistic service provider profiles** across 10 major Pakistani cities (Lahore, Karachi, Islamabad, Faislabad, etc.) and 21 technical specialties to ensure search results are populated and ready to test immediately!

@@ -28,9 +28,9 @@ import {
   CheckCircle2,
   ArrowRight
 } from 'lucide-react';
-import { parseServiceIntent, type ParsedIntent } from '../utils/gemini';
+import { parseServiceIntent, type ParsedIntent } from '../services/gemini';
 import { useAuth } from '../contexts/AuthContext';
-import { Card, EmptyState } from '../components/SharedUI';
+import { Card, EmptyState } from '../components/ui/SharedUI';
 
 // Map categories to Lucide icons
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -191,12 +191,12 @@ export const AIMatching: React.FC = () => {
               </div>
             </div>
 
-            <h2 className="font-headline-md text-headline-md text-on-background dark:text-white mb-xs">
+            <h2 className="font-display font-medium text-headline-md text-ink mb-xs">
               AI Matching Engine
             </h2>
             
             <div className="h-6 flex items-center justify-center">
-              <p className="text-on-surface-variant dark:text-slate-400 font-label-md text-label-md animate-pulse">
+              <p className="text-ink/65 animate-pulse">
                 {loadingStatuses[statusIndex]}
               </p>
             </div>
@@ -235,43 +235,43 @@ export const AIMatching: React.FC = () => {
               <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-md border border-emerald-500/20 shadow-sm animate-bounce" style={{ animationDuration: '3s' }}>
                 <CheckCircle2 className="w-8 h-8" />
               </div>
-              <h1 className="font-headline-lg text-headline-lg text-on-background dark:text-white mb-xs">
+              <h1 className="font-display font-medium text-headline-lg text-ink mb-xs">
                 Request Analyzed!
               </h1>
-              <p className="text-on-surface-variant dark:text-slate-400 text-sm">
+              <p className="text-ink/60 text-sm">
                 Our Gemini AI mapped your task to the best matching specialty.
               </p>
             </div>
 
             {/* Glassmorphic result card */}
-            <div className="bg-surface-container-lowest dark:bg-[#1E293B] rounded-xl border border-outline-variant/30 dark:border-slate-800 p-lg shadow-soft relative overflow-hidden space-y-lg mb-xl backdrop-blur-sm bg-white/95 dark:bg-slate-900/95">
+            <div className="bg-surface-raised rounded-xl border border-border p-lg shadow-soft relative overflow-hidden space-y-lg mb-xl backdrop-blur-sm bg-white/95 dark:bg-slate-900/95">
               {/* Background gradient flares */}
               <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl pointer-events-none"></div>
               
               {/* Input text summary review */}
               {query && (
-                <div className="bg-slate-50 dark:bg-slate-900/40 p-md rounded-lg border border-outline-variant/10">
-                  <span className="text-[10px] uppercase font-mono tracking-wider text-on-surface-variant/60 dark:text-slate-500 block mb-xs">Your Input Query</span>
-                  <p className="text-on-surface dark:text-slate-200 text-sm font-medium italic">"{query}"</p>
+                <div className="bg-surface p-md rounded-lg border border-border/40">
+                  <span className="text-[10px] uppercase font-mono tracking-wider text-ink/40 block mb-xs">Your Input Query</span>
+                  <p className="text-ink text-sm font-medium italic">"{query}"</p>
                 </div>
               )}
 
               {/* Categorization & Urgency visual split */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
                 {/* Category block */}
-                <div className="flex items-center gap-md border border-outline-variant/30 dark:border-slate-700 p-md rounded-xl bg-white/50 dark:bg-slate-900/10">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary dark:text-primary-fixed flex items-center justify-center">
+                <div className="flex items-center gap-md border border-border p-md rounded-xl bg-surface/50">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                     <MatchedIcon className="w-6 h-6" />
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase font-mono tracking-wider text-on-surface-variant/60 dark:text-slate-500 block">Identified Specialty</span>
-                    <span className="text-base font-bold text-on-surface dark:text-white">{result?.category}</span>
+                    <span className="text-[10px] uppercase font-mono tracking-wider text-ink/40 block">Identified Specialty</span>
+                    <span className="text-base font-bold text-ink">{result?.category}</span>
                   </div>
                 </div>
 
                 {/* Urgency block */}
                 {result && (
-                  <div className={`flex items-center gap-md border p-md rounded-xl bg-white/50 dark:bg-slate-900/10 ${getUrgencyStyles(result.urgency).bg}`}>
+                  <div className={`flex items-center gap-md border p-md rounded-xl bg-surface/50 ${getUrgencyStyles(result.urgency).bg}`}>
                     <div className="w-12 h-12 rounded-xl flex items-center justify-center border border-current/20">
                       <span className="relative flex h-3 w-3">
                         <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${getUrgencyStyles(result.urgency).pulse}`}></span>
@@ -279,7 +279,7 @@ export const AIMatching: React.FC = () => {
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] uppercase font-mono tracking-wider text-on-surface-variant/60 dark:text-slate-500 block">Urgency Status</span>
+                      <span className="text-[10px] uppercase font-mono tracking-wider text-ink/40 block">Urgency Status</span>
                       <span className="text-sm font-bold capitalize">{result.urgency}</span>
                     </div>
                   </div>
@@ -288,14 +288,14 @@ export const AIMatching: React.FC = () => {
 
               {/* One line summary block */}
               <div>
-                <span className="text-[10px] uppercase font-mono tracking-wider text-on-surface-variant/60 dark:text-slate-500 block mb-1">AI Request Summary</span>
-                <p className="text-sm font-semibold text-on-surface dark:text-slate-200 border-l-4 border-primary dark:border-primary-fixed pl-md py-1">
+                <span className="text-[10px] uppercase font-mono tracking-wider text-ink/40 block mb-1">AI Request Summary</span>
+                <p className="text-sm font-semibold text-ink border-l-4 border-primary pl-md py-1">
                   {result?.summary}
                 </p>
               </div>
 
               {/* Geographic check overlay info */}
-              <div className="pt-md border-t border-outline-variant/30 dark:border-slate-800 text-[11px] text-on-surface-variant dark:text-slate-400 flex items-center gap-2">
+              <div className="pt-md border-t border-border text-[11px] text-ink/60 flex items-center gap-2">
                 <Compass className="w-4 h-4 text-primary animate-pulse" />
                 <span>Finding local `{result?.category}` workers registered in **{userProfile?.city || 'your city'}**...</span>
               </div>
@@ -304,7 +304,7 @@ export const AIMatching: React.FC = () => {
             {/* Action button */}
             <button
               onClick={handleFindProviders}
-              className="w-full bg-primary text-on-primary font-headline-md text-headline-md py-4 rounded-xl shadow-soft hover:brightness-105 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              className="w-full bg-primary text-white font-bold text-base py-4 rounded-xl shadow-soft hover:bg-primary-hover active:scale-[0.98] transition-all flex items-center justify-center gap-2"
             >
               <span>Search Best Rated Workers</span>
               <ArrowRight className="w-5 h-5" />
