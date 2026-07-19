@@ -117,7 +117,7 @@ export const parseServiceIntent = async (userInput: string): Promise<ParsedInten
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -260,7 +260,7 @@ export const rankProvidersWithAI = async (
     });
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: {
@@ -488,20 +488,18 @@ export const askSiteAgent = async (question: string): Promise<string> => {
     return localSiteAgentFallback(question);
   }
 
-  const maxRetries = 2;
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: `You are the Site-Specific Knowledge Agent for "Khidmat", an on-demand home services marketplace in Pakistan.
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `You are the Support Chatbot Agent for "Khidmat", an on-demand home services marketplace in Pakistan.
 Your sole task is to provide information based strictly on the content of the Khidmat platform.
 
 Khidmat Context:
@@ -510,51 +508,40 @@ Khidmat Context:
 - Features include: AI-powered intent parsing (describe your problem to find the right worker), speech-to-text search, automatic travel fee calculations based on distance (Rs 100 base + Rs 20/km), AI price estimation, and real-time chat between customer and provider.
 - Providers can toggle themselves ONLINE or OFFLINE. Customers can review providers, affecting their tier (Bronze, Silver, Gold, Platinum).
 
-Strict Instructions:
-1. Answer ONLY questions related to Khidmat's features, services, and usage.
-2. If a user asks a general knowledge question (e.g., "What is the capital of France?", "Write me a poem"), you MUST politely decline and inform them that you are restricted to providing information only about Khidmat.
-3. Be concise, helpful, and friendly.
+Strict Platform & Supervision Rules:
+1. ONLY answer questions directly related to Khidmat's features, services, policies, and usage.
+2. If the user's question is off-topic (e.g., general knowledge, math, coding, translation, writing poems, creative writing, or non-Khidmat advice), you MUST politely decline and inform them that you are restricted to providing information only about Khidmat.
+3. Do NOT mention or offer features/services that Khidmat does not support (e.g., credit card payment, bank transfer, online payment, tutoring, healthcare).
+4. Be concise, friendly, and helpful.
+5. Communicate in the exact same language or script (e.g., English, Roman Urdu, or Urdu) that the user used.
 
 User Question: "${question}"`
-              }]
             }]
-          })
-        }
-      );
-
-      if (response.status === 429) {
-        // Rate limited — retry after a delay, or fall back
-        if (attempt < maxRetries) {
-          console.warn(`[Gemini] Rate limited (429). Retrying in ${(attempt + 1) * 2}s... (attempt ${attempt + 1}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, (attempt + 1) * 2000));
-          continue;
-        }
-        // All retries exhausted, use local fallback
-        console.warn("[Gemini] Rate limit persists after retries. Using local fallback.");
-        return localSiteAgentFallback(question);
+          }]
+        })
       }
+    );
 
-      if (!response.ok) {
-        throw new Error(`Gemini API returned status ${response.status}`);
-      }
-
-      const result = await response.json();
-      const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-      
-      if (!responseText) {
-        throw new Error("Empty response from Gemini API");
-      }
-
-      return responseText.trim();
-    } catch (error) {
-      console.error("[Gemini] Site Agent call failed. Error:", error);
-      if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, (attempt + 1) * 1500));
-        continue;
-      }
+    if (response.status === 429) {
+      console.warn("[Gemini] Rate limited (429) on askSiteAgent. Falling back to local knowledge base.");
       return localSiteAgentFallback(question);
     }
-  }
 
-  return localSiteAgentFallback(question);
+    if (!response.ok) {
+      throw new Error(`Gemini API returned status ${response.status}`);
+    }
+
+    const result = await response.json();
+    const responseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!responseText) {
+      throw new Error("Empty response from Gemini API");
+    }
+
+    return responseText.trim();
+
+  } catch (error) {
+    console.error("[Gemini] Site Agent call failed. Error:", error);
+    return localSiteAgentFallback(question);
+  }
 };
